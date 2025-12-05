@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,8 +9,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         /* 에디터 UI 스타일 (편집 대상 HTML과 섞이지 않도록 접두사 사용) */
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: sans-serif; }
-        
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+
         #app-container {
             display: flex;
             height: 100vh;
@@ -42,15 +50,26 @@
             height: 100%;
             border: none;
             background: white;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
             border-radius: 8px;
             transition: width 0.3s;
         }
-        
+
         /* 디바이스 뷰 모드 */
-        #content-frame.mobile { width: 375px; height: 667px; }
-        #content-frame.tablet { width: 768px; height: 1024px; }
-        #content-frame.desktop { width: 100%; height: 100%; }
+        #content-frame.mobile {
+            width: 375px;
+            height: 667px;
+        }
+
+        #content-frame.tablet {
+            width: 768px;
+            height: 1024px;
+        }
+
+        #content-frame.desktop {
+            width: 100%;
+            height: 100%;
+        }
 
         .tool-btn {
             display: flex;
@@ -63,9 +82,17 @@
             transition: all 0.2s;
             color: #94a3b8;
         }
-        .tool-btn:hover { background-color: #334155; color: white; }
-        .tool-btn.active { background-color: #2563eb; color: white; }
-        
+
+        .tool-btn:hover {
+            background-color: #334155;
+            color: white;
+        }
+
+        .tool-btn.active {
+            background-color: #2563eb;
+            color: white;
+        }
+
         .section-title {
             font-size: 0.75rem;
             text-transform: uppercase;
@@ -75,6 +102,7 @@
         }
     </style>
 </head>
+
 <body>
 
     <div id="app-container">
@@ -90,7 +118,7 @@
                 <i class="fa-solid fa-folder-open"></i> HTML 열기
             </button>
             <input type="file" id="file-upload" accept=".html,.htm" hidden>
-            
+
             <button onclick="saveHTML()" class="tool-btn text-green-400 hover:text-green-300">
                 <i class="fa-solid fa-download"></i> HTML 저장 (다운로드)
             </button>
@@ -105,9 +133,15 @@
 
             <div class="section-title">뷰 모드</div>
             <div class="flex gap-2 px-2">
-                <button onclick="setDevice('desktop')" class="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white flex-1"><i class="fa-solid fa-desktop"></i></button>
-                <button onclick="setDevice('tablet')" class="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white flex-1"><i class="fa-solid fa-tablet-screen-button"></i></button>
-                <button onclick="setDevice('mobile')" class="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white flex-1"><i class="fa-solid fa-mobile-screen-button"></i></button>
+                <button onclick="setDevice('desktop')"
+                    class="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white flex-1"><i
+                        class="fa-solid fa-desktop"></i></button>
+                <button onclick="setDevice('tablet')"
+                    class="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white flex-1"><i
+                        class="fa-solid fa-tablet-screen-button"></i></button>
+                <button onclick="setDevice('mobile')"
+                    class="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white flex-1"><i
+                        class="fa-solid fa-mobile-screen-button"></i></button>
             </div>
 
             <div class="mt-auto pt-4 text-xs text-slate-500 px-2">
@@ -131,12 +165,12 @@
         let currentTargetImg = null;
 
         // 1. 파일 열기
-        document.getElementById('file-upload').addEventListener('change', function(e) {
+        document.getElementById('file-upload').addEventListener('change', function (e) {
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(event) {
+            reader.onload = function (event) {
                 const htmlContent = event.target.result;
                 loadContent(htmlContent);
             };
@@ -151,7 +185,7 @@
             doc.close();
 
             // 로드 완료 후 스크립트 주입
-            iframe.onload = function() {
+            iframe.onload = function () {
                 doc = iframe.contentDocument || iframe.contentWindow.document;
                 injectEditorStyles();
                 if (isEditMode) enableEditing();
@@ -185,38 +219,66 @@
             isEditMode = true;
             updateEditBtn();
 
-            // 텍스트 요소 찾기 (P, H1~H6, SPAN, DIV, LI, A)
-            // 텍스트 노드가 있는 요소만 선택
+            // 모든 시각적 요소에 대해 반복
             const allElements = doc.body.getElementsByTagName('*');
+            const nonEditableTags = ['SCRIPT', 'STYLE', 'LINK', 'META', 'TITLE', 'BR', 'HR'];
+
             for (let el of allElements) {
-                // 텍스트를 직접 포함하고 있거나, 제목 태그인 경우
-                if ((el.childNodes.length > 0 && el.childNodes[0].nodeType === 3 && el.innerText.trim().length > 0) 
-                    || ['H1','H2','H3','H4','H5','H6','P','LI','BUTTON'].includes(el.tagName)) {
-                    
+                if (nonEditableTags.includes(el.tagName)) {
+                    continue;
+                }
+
+                // --- 1. 텍스트 및 일반 콘텐츠 편집 활성화 ---
+                // 모든 블록/인라인 요소를 편집 가능하게 만듭니다.
+                // 텍스트를 포함하는 모든 일반적인 요소를 포함합니다.
+                if (el.tagName !== 'IMG') { // 이미지는 아래에서 별도 처리
                     el.contentEditable = "true";
                     el.classList.add('ve-editable-text');
                 }
-                
-                // 이미지 처리
+
+                // --- 2. 이미지 및 아이콘 처리 ---
+                // 이미지 처리: 기존 <img> 태그
                 if (el.tagName === 'IMG') {
                     el.classList.add('ve-editable-img');
                     // 기존 클릭 이벤트 제거 후 새 이벤트 추가
-                    el.onclick = function(e) {
+                    el.onclick = function (e) {
                         e.preventDefault();
                         e.stopPropagation();
-                        if(!isEditMode) return;
-                        
+                        if (!isEditMode) return;
+
                         // 부모창(이 파일)의 이미지 업로더 실행
                         currentTargetImg = el;
                         document.getElementById('img-changer').click();
                     };
                 }
 
-                // 링크 이동 방지
+                // FontAwesome 아이콘 처리: 아이콘도 텍스트 편집으로 클래스 수정 가능하게 유지
+                if (el.tagName === 'I' && el.classList.contains('fa-solid') || el.classList.contains('fa-regular')) {
+                    // 이미 위에서 contentEditable=true가 설정되었을 것
+                    // 특별한 이미지 교체 로직은 필요 없으므로 텍스트처럼 클래스 편집 가능하게 둠
+                    el.title = "아이콘 클래스를 수정하세요 (예: fa-pencil)"; // 팁 제공
+                }
+
+                // --- 3. 링크 이동 방지 ---
                 if (el.tagName === 'A') {
                     el.classList.add('ve-disabled');
-                    el.onclick = (e) => { if(isEditMode) e.preventDefault(); };
+                    el.onclick = (e) => { if (isEditMode) e.preventDefault(); };
                 }
+            }
+
+            // 배경색/배경 이미지 편집을 위한 추가 기능 (선택적)
+            // body 자체를 클릭하면 현재 페이지의 배경색을 변경할 수 있도록 (고급 기능으로 분류)
+            if (doc.body && !doc.body.dataset.backgroundListener) {
+                doc.body.dataset.backgroundListener = 'true';
+                doc.body.addEventListener('contextmenu', function (e) {
+                    if (isEditMode && e.target === doc.body) {
+                        e.preventDefault();
+                        const newColor = prompt("배경색을 입력하세요 (예: #f0f9ff 또는 red):", doc.body.style.backgroundColor || doc.defaultView.getComputedStyle(doc.body).backgroundColor);
+                        if (newColor !== null) {
+                            doc.body.style.backgroundColor = newColor;
+                        }
+                    }
+                });
             }
         }
 
@@ -236,8 +298,8 @@
                 el.classList.remove('ve-editable-img');
                 el.onclick = null; // 이벤트 제거
             });
-            
-             const links = doc.querySelectorAll('.ve-disabled');
+
+            const links = doc.querySelectorAll('.ve-disabled');
             links.forEach(el => el.classList.remove('ve-disabled'));
         }
 
@@ -258,21 +320,21 @@
         }
 
         // 3. 이미지 교체 로직
-        document.getElementById('img-changer').addEventListener('change', function(e) {
+        document.getElementById('img-changer').addEventListener('change', function (e) {
             const file = e.target.files[0];
             if (file && currentTargetImg) {
                 const reader = new FileReader();
-                reader.onload = function(evt) {
+                reader.onload = function (evt) {
                     currentTargetImg.src = evt.target.result;
                 };
                 reader.readAsDataURL(file);
             }
             this.value = ''; // 초기화
         });
-        
+
         // 가끔 동적으로 생성된 요소 때문에 핸들러가 끊기면 수동 연결
         function injectImageHandler() {
-             enableEditing(); // 다시 실행해서 재연결
+            enableEditing(); // 다시 실행해서 재연결
         }
 
         // 4. 저장 (다운로드)
@@ -294,7 +356,7 @@
             const htmlContent = doc.documentElement.outerHTML;
             const blob = new Blob([htmlContent], { type: "text/html" });
             const url = URL.createObjectURL(blob);
-            
+
             const a = document.createElement('a');
             a.href = url;
             a.download = "edited_page.html";
@@ -314,9 +376,9 @@
         }
 
         // 초기 데모 로드 (사용자가 바로 느낌을 알 수 있도록 젤리 PPT 코드 로드)
-        window.onload = function() {
-             // 앞서 만든 Jelly PPT 코드를 기본 예제로 로드해봅니다. (실제 환경에선 빈 화면이거나 도움말이 뜸)
-             const demoHTML = `
+        window.onload = function () {
+            // 앞서 만든 Jelly PPT 코드를 기본 예제로 로드해봅니다. (실제 환경에선 빈 화면이거나 도움말이 뜸)
+            const demoHTML = `
                 <!DOCTYPE html>
                 <html lang="ko">
                 <head><style>body{display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;background:#f0f9ff;text-align:center;} h1{color:#0284c7;}</style></head>
@@ -332,9 +394,10 @@
                 </body>
                 </html>
              `;
-             loadContent(demoHTML);
+            loadContent(demoHTML);
         }
 
     </script>
 </body>
+
 </html>
