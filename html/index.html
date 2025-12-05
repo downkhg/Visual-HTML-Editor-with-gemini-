@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visual HTML Editor v0.03</title>
+    <title>Visual HTML Editor v0.03.01</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -702,7 +702,7 @@
                 .ve-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; z-index: 9999; box-shadow: 0 0 0 4px rgba(37,99,235,0.2); }
                 a { pointer-events: none; }
                 *:empty:not(img):not(br):not(hr):not(i)::before { content: 'Empty Box'; color: #ccc; font-size: 10px; display: block; background: #f8f8f8; padding: 2px; }
-                i { cursor: pointer; } 
+                i { cursor: pointer; caret-color: transparent; } 
             `;
             doc.head.appendChild(style);
         }
@@ -717,11 +717,17 @@
                 el.classList.add('ve-hover');
 
                 if (el.tagName !== 'IMG') {
-                    // 🟢 FIX: 아이콘(i 태그)은 텍스트 편집 불가하게 설정 (클래스로만 변경)
+                    // 아이콘도 클릭 가능하도록 contentEditable은 true로 설정
+                    el.contentEditable = "true";
+
+                    // 아이콘(i 태그)은 텍스트 편집만 방지
                     if (el.tagName === 'I') {
-                        el.contentEditable = "false";
+                        el.addEventListener('keydown', (e) => e.preventDefault());
+                        el.addEventListener('paste', (e) => e.preventDefault());
+                        el.addEventListener('cut', (e) => e.preventDefault());
+                        el.addEventListener('input', (e) => e.preventDefault());
                     } else {
-                        el.contentEditable = "true";
+                        // 일반 요소는 변경 감지
                         el.addEventListener('blur', () => saveState());
                         el.addEventListener('paste', (e) => {
                             e.preventDefault();
