@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visual HTML Editor v0.01</title>
+    <title>Visual HTML Editor v0.02</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -27,7 +27,8 @@
 
         /* 사이드바 */
         #sidebar {
-            width: 320px;
+            width: 340px;
+            /* 패널 확장 */
             background-color: #1e293b;
             color: #e2e8f0;
             display: flex;
@@ -97,7 +98,7 @@
         }
 
         .section-title {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             text-transform: uppercase;
             color: #94a3b8;
             font-weight: 700;
@@ -105,6 +106,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            letter-spacing: 0.05em;
         }
 
         .control-grid {
@@ -118,11 +120,13 @@
             align-items: center;
             justify-content: space-between;
             margin-bottom: 8px;
+            gap: 8px;
         }
 
         .control-label {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: #cbd5e1;
+            white-space: nowrap;
         }
 
         /* Inputs */
@@ -142,8 +146,8 @@
         input[type="color"] {
             -webkit-appearance: none;
             border: none;
-            width: 30px;
-            height: 30px;
+            width: 24px;
+            height: 24px;
             padding: 0;
             background: none;
             cursor: pointer;
@@ -156,6 +160,13 @@
         input[type="color"]::-webkit-color-swatch {
             border: 1px solid #475569;
             border-radius: 4px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: #3b82f6;
+            height: 4px;
+            border-radius: 2px;
         }
 
         /* Buttons */
@@ -192,8 +203,9 @@
         }
 
         .btn.active {
-            background-color: #2563eb;
+            background-color: #3b82f6;
             color: white;
+            border: 1px solid #60a5fa;
         }
 
         .btn:disabled {
@@ -206,21 +218,44 @@
             width: 32px;
             height: 32px;
         }
+
+        .btn-group {
+            display: flex;
+            gap: 1px;
+            background: #334155;
+            padding: 2px;
+            border-radius: 4px;
+        }
+
+        .btn-group .btn {
+            flex: 1;
+            background: transparent;
+            padding: 4px;
+            height: 28px;
+        }
+
+        .btn-group .btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-group .btn.active {
+            background: #2563eb;
+        }
     </style>
 </head>
 
 <body>
 
     <div id="app-container">
-        <!-- 사이드바: 툴바 & 속성 패널 -->
+        <!-- 사이드바 -->
         <aside id="sidebar">
             <!-- 1. 헤더 & 파일 관리 -->
             <div class="panel-section bg-slate-900 sticky top-0 z-10">
                 <div class="flex items-center gap-3 mb-4">
                     <div
-                        class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold text-white text-xs">
-                        V.01</div>
-                    <h1 class="font-bold text-sm">Visual Editor v0.01</h1>
+                        class="w-8 h-8 bg-indigo-500 rounded flex items-center justify-center font-bold text-white text-xs shadow-lg">
+                        V.02</div>
+                    <h1 class="font-bold text-sm">Visual Editor v0.02</h1>
                 </div>
 
                 <div class="flex gap-2 mb-2">
@@ -239,29 +274,41 @@
                 </div>
             </div>
 
-            <!-- 2. 선택된 요소 정보 (Status) -->
-            <div class="panel-section border-b border-slate-700">
-                <div class="section-title">선택된 요소</div>
-                <div id="selected-tag-display" class="text-xs bg-slate-800 p-2 rounded text-blue-300 font-mono mb-2">
-                    선택된 요소 없음
+            <!-- 2. 선택된 요소 정보 -->
+            <div class="panel-section border-b border-slate-700 bg-slate-800/50">
+                <div class="section-title">
+                    <span>Selection</span>
+                    <span id="selected-tag-display" class="text-xs text-blue-300 font-mono">none</span>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="selectParent()" class="btn btn-icon" title="부모 요소 선택"><i
+                    <button onclick="selectParent()" class="btn btn-icon flex-1" title="부모 선택 (UP)"><i
                             class="fa-solid fa-arrow-up"></i></button>
-                    <button onclick="deleteSelected()" class="btn btn-icon danger" title="삭제"><i
-                            class="fa-solid fa-trash"></i></button>
-                    <button onclick="cloneSelected()" class="btn btn-icon" title="복제"><i
+                    <button onclick="cloneSelected()" class="btn btn-icon flex-1" title="복제"><i
                             class="fa-regular fa-clone"></i></button>
+                    <button onclick="deleteSelected()" class="btn btn-icon flex-1 danger" title="삭제"><i
+                            class="fa-solid fa-trash"></i></button>
                 </div>
             </div>
 
-            <!-- 3. 텍스트 스타일 (Typography) -->
+            <!-- 3. Typography (확장됨) -->
             <div class="panel-section">
-                <div class="section-title">텍스트 (Typography)</div>
+                <div class="section-title">Typography (문자)</div>
+
+                <div class="mb-2">
+                    <label class="control-label block mb-1">폰트 (Font Family)</label>
+                    <select id="input-font-family" onchange="applyStyle('fontFamily', this.value)">
+                        <option value="">기본 (Inherit)</option>
+                        <option value="'Jua', sans-serif">Jua (둥근체)</option>
+                        <option value="'Comfortaa', cursive">Comfortaa (영문 둥근체)</option>
+                        <option value="sans-serif">Sans Serif (고딕)</option>
+                        <option value="serif">Serif (명조)</option>
+                        <option value="monospace">Monospace (코딩)</option>
+                    </select>
+                </div>
 
                 <div class="control-row">
                     <span class="control-label">색상</span>
-                    <div class="flex gap-2 items-center">
+                    <div class="flex gap-2 items-center flex-1 justify-end">
                         <span id="text-color-val" class="text-xs text-slate-400">#000000</span>
                         <input type="color" id="input-color" onchange="applyStyle('color', this.value)">
                     </div>
@@ -279,89 +326,174 @@
                     </div>
                 </div>
 
-                <div class="flex gap-1 bg-slate-800 p-1 rounded mb-2">
-                    <button onclick="applyStyle('textAlign', 'left')" class="btn btn-icon flex-1"><i
+                <div class="btn-group mb-2">
+                    <button onclick="applyStyle('textAlign', 'left')" class="btn" id="btn-align-left"><i
                             class="fa-solid fa-align-left"></i></button>
-                    <button onclick="applyStyle('textAlign', 'center')" class="btn btn-icon flex-1"><i
+                    <button onclick="applyStyle('textAlign', 'center')" class="btn" id="btn-align-center"><i
                             class="fa-solid fa-align-center"></i></button>
-                    <button onclick="applyStyle('textAlign', 'right')" class="btn btn-icon flex-1"><i
+                    <button onclick="applyStyle('textAlign', 'right')" class="btn" id="btn-align-right"><i
                             class="fa-solid fa-align-right"></i></button>
+                    <button onclick="applyStyle('textAlign', 'justify')" class="btn" id="btn-align-justify"><i
+                            class="fa-solid fa-align-justify"></i></button>
                 </div>
 
-                <div class="flex gap-1">
-                    <button onclick="toggleStyle('fontWeight', 'bold', 'normal')" class="btn flex-1"><i
+                <div class="btn-group">
+                    <button onclick="toggleStyle('fontWeight', 'bold', 'normal')" class="btn" id="btn-bold"><i
                             class="fa-solid fa-bold"></i></button>
-                    <button onclick="toggleStyle('fontStyle', 'italic', 'normal')" class="btn flex-1"><i
+                    <button onclick="toggleStyle('fontStyle', 'italic', 'normal')" class="btn" id="btn-italic"><i
                             class="fa-solid fa-italic"></i></button>
-                    <button onclick="toggleStyle('textDecoration', 'underline', 'none')" class="btn flex-1"><i
-                            class="fa-solid fa-underline"></i></button>
+                    <button onclick="toggleStyle('textDecoration', 'underline', 'none')" class="btn"
+                        id="btn-underline"><i class="fa-solid fa-underline"></i></button>
                 </div>
             </div>
 
-            <!-- 4. 박스 스타일 (Box Model) -->
+            <!-- 4. Layout (Flex 추가) -->
             <div class="panel-section">
-                <div class="section-title">박스 모델 (Layout)</div>
+                <div class="section-title">Layout & Spacing</div>
 
-                <div class="control-row">
-                    <span class="control-label">배경색</span>
-                    <div class="flex gap-2 items-center">
-                        <span id="bg-color-val" class="text-xs text-slate-400">transparent</span>
-                        <input type="color" id="input-bg-color" onchange="applyStyle('backgroundColor', this.value)">
+                <div class="mb-2">
+                    <label class="control-label block mb-1">배치 방식 (Display)</label>
+                    <select id="input-display" onchange="applyStyle('display', this.value); updateSidebarUI();">
+                        <option value="block">Block</option>
+                        <option value="flex">Flex (정렬 컨테이너)</option>
+                        <option value="inline">Inline</option>
+                        <option value="inline-block">Inline-Block</option>
+                        <option value="grid">Grid</option>
+                        <option value="none">None (숨김)</option>
+                    </select>
+                </div>
+
+                <!-- Flex Controls (조건부 표시) -->
+                <div id="flex-controls" class="bg-slate-800 p-2 rounded mb-2 hidden">
+                    <label class="control-label block mb-1 text-blue-300">Flex 정렬</label>
+                    <div class="control-row">
+                        <span class="control-label text-xs">가로</span>
+                        <select id="input-justify" class="text-xs" onchange="applyStyle('justifyContent', this.value)">
+                            <option value="flex-start">시작 (Left)</option>
+                            <option value="center">중앙 (Center)</option>
+                            <option value="flex-end">끝 (Right)</option>
+                            <option value="space-between">양끝 (Between)</option>
+                            <option value="space-around">균등 (Around)</option>
+                        </select>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label text-xs">세로</span>
+                        <select id="input-align" class="text-xs" onchange="applyStyle('alignItems', this.value)">
+                            <option value="stretch">채우기 (Stretch)</option>
+                            <option value="flex-start">상단 (Top)</option>
+                            <option value="center">중앙 (Middle)</option>
+                            <option value="flex-end">하단 (Bottom)</option>
+                        </select>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label text-xs">간격 (Gap)</span>
+                        <input type="text" id="input-gap" placeholder="10px" class="text-xs"
+                            onchange="applyStyle('gap', this.value)">
                     </div>
                 </div>
 
                 <div class="control-grid">
                     <div>
-                        <label class="control-label block mb-1">안쪽 여백 (Pad)</label>
-                        <input type="text" id="input-padding" placeholder="ex: 10px"
+                        <label class="control-label block mb-1">Pad</label>
+                        <input type="text" id="input-padding" placeholder="10px"
                             onchange="applyStyle('padding', this.value)">
                     </div>
                     <div>
-                        <label class="control-label block mb-1">바깥 여백 (Mar)</label>
-                        <input type="text" id="input-margin" placeholder="ex: 0 auto"
+                        <label class="control-label block mb-1">Margin</label>
+                        <input type="text" id="input-margin" placeholder="0 auto"
                             onchange="applyStyle('margin', this.value)">
                     </div>
                     <div>
-                        <label class="control-label block mb-1">너비 (Width)</label>
-                        <input type="text" id="input-width" placeholder="ex: 100%"
+                        <label class="control-label block mb-1">W</label>
+                        <input type="text" id="input-width" placeholder="100%"
                             onchange="applyStyle('width', this.value)">
                     </div>
                     <div>
-                        <label class="control-label block mb-1">높이 (Height)</label>
-                        <input type="text" id="input-height" placeholder="ex: auto"
+                        <label class="control-label block mb-1">H</label>
+                        <input type="text" id="input-height" placeholder="auto"
                             onchange="applyStyle('height', this.value)">
                     </div>
                 </div>
             </div>
 
-            <!-- 5. 고급 설정 (Classes & HTML) -->
+            <!-- 5. Decoration (신규) -->
             <div class="panel-section">
-                <div class="section-title">고급 설정 (Advanced)</div>
+                <div class="section-title">Decoration (꾸미기)</div>
+
+                <div class="control-row">
+                    <span class="control-label">배경색</span>
+                    <div class="flex gap-2 items-center flex-1 justify-end">
+                        <span id="bg-color-val" class="text-xs text-slate-400">none</span>
+                        <input type="color" id="input-bg-color" onchange="applyStyle('backgroundColor', this.value)">
+                    </div>
+                </div>
 
                 <div class="mb-3">
-                    <label class="control-label block mb-1">이미지 URL (이미지 선택 시)</label>
+                    <div class="control-row">
+                        <label class="control-label">둥근 모서리 (Radius)</label>
+                        <span id="radius-val" class="text-xs text-blue-300">0px</span>
+                    </div>
+                    <input type="range" id="input-radius" min="0" max="100" value="0"
+                        oninput="applyStyle('borderRadius', this.value + 'px'); document.getElementById('radius-val').innerText = this.value + 'px'">
+                </div>
+
+                <div class="mb-3">
+                    <label class="control-label block mb-1">테두리 (Border)</label>
                     <div class="flex gap-1">
-                        <input type="text" id="input-src" placeholder="https://..."
-                            onchange="applyAttribute('src', this.value)">
+                        <input type="number" id="input-border-width" placeholder="px" style="width: 50px"
+                            onchange="updateBorder()">
+                        <select id="input-border-style" onchange="updateBorder()">
+                            <option value="none">없음</option>
+                            <option value="solid">실선</option>
+                            <option value="dashed">점선</option>
+                            <option value="dotted">도트</option>
+                        </select>
+                        <input type="color" id="input-border-color" value="#000000" onchange="updateBorder()">
+                    </div>
+                </div>
+
+                <div class="mb-1">
+                    <label class="control-label block mb-1">그림자 (Shadow)</label>
+                    <div class="btn-group">
+                        <button onclick="applyStyle('boxShadow', 'none')" class="btn flex-1 text-xs">X</button>
+                        <button onclick="applyStyle('boxShadow', '0 2px 5px rgba(0,0,0,0.1)')"
+                            class="btn flex-1 text-xs">약</button>
+                        <button onclick="applyStyle('boxShadow', '0 10px 20px rgba(0,0,0,0.15)')"
+                            class="btn flex-1 text-xs">중</button>
+                        <button onclick="applyStyle('boxShadow', '0 20px 50px rgba(0,0,0,0.25)')"
+                            class="btn flex-1 text-xs">강</button>
+                        <button onclick="applyStyle('boxShadow', '0 0 15px rgba(255, 255, 255, 0.8)')"
+                            class="btn flex-1 text-xs"><i class="fa-solid fa-sun"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. Advanced -->
+            <div class="panel-section">
+                <div class="section-title">Advanced</div>
+
+                <div class="mb-2" id="img-control-group" style="display:none;">
+                    <label class="control-label block mb-1">이미지 소스 (SRC)</label>
+                    <div class="flex gap-1">
+                        <input type="text" id="input-src" class="text-xs" onchange="applyAttribute('src', this.value)">
                         <button onclick="document.getElementById('img-changer').click()" class="btn btn-icon"><i
                                 class="fa-regular fa-image"></i></button>
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <label class="control-label block mb-1">CSS 클래스</label>
-                    <input type="text" id="input-classes" placeholder="class1 class2..."
-                        onchange="applyClasses(this.value)">
+                <div class="mb-2">
+                    <label class="control-label block mb-1">Classes</label>
+                    <input type="text" id="input-classes" onchange="applyClasses(this.value)">
                 </div>
 
-                <div class="mb-3">
-                    <label class="control-label block mb-1">Raw HTML 편집</label>
-                    <textarea id="input-html" rows="3" class="font-mono text-xs"
+                <div>
+                    <button onclick="toggleHtmlEdit()" class="btn w-full text-xs mb-1">Raw HTML 편집 <i
+                            class="fa-solid fa-code ml-1"></i></button>
+                    <textarea id="input-html" rows="4" class="font-mono text-xs hidden"
                         onchange="applyOuterHTML(this.value)"></textarea>
                 </div>
             </div>
 
-            <!-- 뷰 모드 -->
             <div class="mt-auto panel-section bg-slate-900 border-t border-slate-700">
                 <div class="flex gap-2">
                     <button onclick="setDevice('desktop')" class="btn flex-1" title="PC"><i
@@ -380,42 +512,34 @@
         </main>
     </div>
 
-    <!-- 히든 인풋 -->
     <input type="file" id="img-changer" accept="image/*" hidden>
 
     <script>
         const iframe = document.getElementById('content-frame');
         let doc = null;
         let isEditMode = true;
-        let selectedEl = null; // 현재 선택된 요소
+        let selectedEl = null;
 
-        // --- Undo/Redo 상태 관리 ---
+        // --- Undo/Redo ---
         let historyStack = [];
         let historyIndex = -1;
-        const MAX_HISTORY = 30;
+        const MAX_HISTORY = 40;
 
         function saveState() {
             if (!doc) return;
-            // 에디터용 스타일 제거 후 저장
             const style = doc.getElementById('visual-editor-style');
-            const outline = doc.getElementById('ve-selection-outline');
             if (style) style.remove();
-            if (outline) outline.remove();
 
-            // 선택된 상태 클래스 제거 (저장본에는 포함되지 않게)
             const selected = doc.querySelector('.ve-selected');
             if (selected) selected.classList.remove('ve-selected');
 
             const html = doc.documentElement.outerHTML;
 
-            // 다시 복구
             injectEditorStyles();
-            if (selectedEl) {
+            if (selectedEl && doc.contains(selectedEl)) {
                 selectedEl.classList.add('ve-selected');
-                highlightElement(selectedEl);
             }
 
-            // 히스토리 추가
             if (historyIndex < historyStack.length - 1) {
                 historyStack = historyStack.slice(0, historyIndex + 1);
             }
@@ -441,8 +565,7 @@
             }
         }
 
-
-        // --- 초기 로드 및 파일 처리 ---
+        // --- Core ---
         document.getElementById('file-upload').addEventListener('change', function (e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -451,7 +574,20 @@
             reader.readAsText(file);
         });
 
+        // 🟢 FIX: Font Awesome 강제 주입 로직 개선
         function loadContent(html, isHistoryOp = false) {
+            // 불러오는 HTML 문자열에 Font Awesome이 없다면 강제로 <head>에 주입
+            if (!html.includes('font-awesome')) {
+                const faCDN = '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">';
+
+                // Head 태그가 있으면 그 안에, 없으면 HTML 시작에 붙임
+                if (html.toLowerCase().includes('<head>')) {
+                    html = html.replace(/<head>/i, '<head>\n' + faCDN);
+                } else {
+                    html = faCDN + html;
+                }
+            }
+
             doc = iframe.contentDocument || iframe.contentWindow.document;
             doc.open();
             doc.write(html);
@@ -461,55 +597,60 @@
                 doc = iframe.contentDocument || iframe.contentWindow.document;
                 injectEditorStyles();
                 enableEditing();
-                selectedEl = null; // 선택 초기화
-                updateSidebarUI(); // 사이드바 초기화
+                if (!isHistoryOp) {
+                    selectedEl = null;
+                    updateSidebarUI();
+                    setTimeout(() => saveState(), 100);
+                } else {
+                    selectedEl = null;
+                    updateSidebarUI();
+                }
             };
-
-            if (!isHistoryOp) {
-                // 약간의 딜레이 후 초기 상태 저장 (DOM 렌더링 확보)
-                setTimeout(() => saveState(), 100);
-            }
         }
 
-        // --- 에디터 스타일 및 이벤트 주입 ---
         function injectEditorStyles() {
             if (!doc) return;
+            // 만약 loadContent 단계에서 주입되지 않았을 경우를 대비한 백업 (안정성)
+            if (!doc.querySelector('link[href*="font-awesome"]')) {
+                const faLink = doc.createElement('link');
+                faLink.rel = 'stylesheet';
+                faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
+                // Head가 없으면 Body에라도 붙임
+                (doc.head || doc.body).appendChild(faLink);
+            }
+
             if (doc.getElementById('visual-editor-style')) return;
 
             const style = doc.createElement('style');
             style.id = 'visual-editor-style';
             style.innerHTML = `
-                /* 편집 가이드라인 */
-                .ve-hover:hover { outline: 1px dashed #3b82f6 !important; cursor: pointer; }
-                .ve-selected { outline: 2px solid #2563eb !important; outline-offset: 2px; z-index: 1000; position: relative; }
-                body { min-height: 100vh; }
-                /* 링크 클릭 방지 */
+                .ve-hover:hover { outline: 2px dashed #60a5fa !important; cursor: pointer; opacity: 0.95; }
+                .ve-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; z-index: 9999; box-shadow: 0 0 0 4px rgba(37,99,235,0.2); }
                 a { pointer-events: none; }
+                *:empty:not(img):not(br)::before { content: 'Empty Box'; color: #ccc; font-size: 10px; display: block; background: #f8f8f8; padding: 2px; }
             `;
             doc.head.appendChild(style);
         }
 
         function enableEditing() {
             const allElements = doc.body.getElementsByTagName('*');
-            const skipTags = ['SCRIPT', 'STYLE', 'LINK', 'META', 'TITLE', 'BR'];
+            const skipTags = ['SCRIPT', 'STYLE', 'LINK', 'META', 'TITLE', 'BR', 'HR'];
 
             for (let el of allElements) {
                 if (skipTags.includes(el.tagName)) continue;
 
-                // 호버 효과 클래스
                 el.classList.add('ve-hover');
 
-                // 텍스트 편집 가능 설정 (이미지 제외)
                 if (el.tagName !== 'IMG') {
                     el.contentEditable = "true";
-                    // 텍스트 편집 중에는 상위 클릭 이벤트 방지
-                    el.addEventListener('input', (e) => {
-                        // 내용이 변하면 상태 저장 (Debounce 적용 권장하나 간단히 구현)
-                    });
                     el.addEventListener('blur', () => saveState());
+                    el.addEventListener('paste', (e) => {
+                        e.preventDefault();
+                        const text = (e.originalEvent || e).clipboardData.getData('text/plain');
+                        doc.execCommand("insertText", false, text);
+                    });
                 }
 
-                // 클릭 시 요소 선택 (이벤트 캡처링 방지 및 선택 로직)
                 el.onclick = function (e) {
                     e.preventDefault();
                     e.stopPropagation();
@@ -517,21 +658,16 @@
                 };
             }
 
-            // Body 클릭 시 선택 해제
             doc.body.onclick = function (e) {
                 if (e.target === doc.body) selectElement(doc.body);
             }
         }
 
-        // --- 요소 선택 및 사이드바 동기화 (Core Logic) ---
+        // --- Selection & UI Sync ---
         function selectElement(el) {
-            // 이전 선택 해제
             if (selectedEl) selectedEl.classList.remove('ve-selected');
-
             selectedEl = el;
             selectedEl.classList.add('ve-selected');
-
-            // 사이드바 UI 업데이트
             updateSidebarUI();
         }
 
@@ -542,7 +678,6 @@
         }
 
         function deselectAll(e) {
-            // 캔버스 배경 클릭시 선택 해제
             if (e.target.id === 'editor-canvas') {
                 if (selectedEl) selectedEl.classList.remove('ve-selected');
                 selectedEl = null;
@@ -550,61 +685,129 @@
             }
         }
 
-        // 선택된 요소의 스타일을 사이드바 인풋에 반영
         function updateSidebarUI() {
             const display = document.getElementById('selected-tag-display');
+            const flexControls = document.getElementById('flex-controls');
+            const imgControls = document.getElementById('img-control-group');
 
             if (!selectedEl) {
-                display.innerText = "선택된 요소 없음";
-                // 모든 인풋 비활성화 또는 초기화 (생략 가능)
+                display.innerText = "none";
+                flexControls.classList.add('hidden');
+                imgControls.style.display = 'none';
                 return;
             }
 
-            // 태그명 표시
+            // 1. Tag Info
             let tagName = selectedEl.tagName.toLowerCase();
             if (selectedEl.id) tagName += `#${selectedEl.id}`;
-            if (selectedEl.classList.length > 0) tagName += `.${selectedEl.classList[0]}`;
             display.innerText = `<${tagName}>`;
 
-            // Computed Style 가져오기
-            const computed = window.getComputedStyle(selectedEl);
+            // Computed Style
+            const s = window.getComputedStyle(selectedEl);
+            const styleRaw = selectedEl.style; // Inline style 우선 확인
 
-            // 1. Typography
-            setInputValue('input-color', rgbToHex(computed.color));
-            document.getElementById('text-color-val').innerText = rgbToHex(computed.color);
+            // 2. Typography
+            setInputValue('input-font-family', getFontFamilyValue(s.fontFamily));
+            setInputValue('input-color', rgbToHex(s.color));
+            document.getElementById('text-color-val').innerText = rgbToHex(s.color);
+            setInputValue('input-font-size', parseInt(s.fontSize) || '');
+            setInputValue('input-line-height', s.lineHeight === 'normal' ? '' : parseFloat(s.lineHeight));
 
-            setInputValue('input-font-size', parseInt(computed.fontSize) || '');
-            setInputValue('input-line-height', computed.lineHeight === 'normal' ? '' : parseFloat(computed.lineHeight));
+            // Text Align Buttons Active State
+            updateBtnGroup('textAlign', s.textAlign);
+            updateBtnToggle('fontWeight', s.fontWeight, ['bold', '700']);
+            updateBtnToggle('fontStyle', s.fontStyle, ['italic']);
+            updateBtnToggle('textDecoration', s.textDecorationLine, ['underline']);
 
-            // 2. Box Model
-            let bgCol = computed.backgroundColor;
-            if (bgCol === 'rgba(0, 0, 0, 0)' || !bgCol) bgCol = '#ffffff'; // 투명이면 흰색 처리(UI상)
+            // 3. Layout
+            setInputValue('input-display', s.display);
+            if (s.display === 'flex' || s.display === 'inline-flex') {
+                flexControls.classList.remove('hidden');
+                setInputValue('input-justify', s.justifyContent);
+                setInputValue('input-align', s.alignItems);
+                setInputValue('input-gap', styleRaw.gap || s.gap); // Gap은 computed가 0px로 나올 때가 많아 inline 우선
+            } else {
+                flexControls.classList.add('hidden');
+            }
+
+            setInputValue('input-padding', styleRaw.padding || s.padding);
+            setInputValue('input-margin', styleRaw.margin || s.margin);
+            setInputValue('input-width', styleRaw.width || (s.width !== 'auto' ? s.width : ''));
+            setInputValue('input-height', styleRaw.height || (s.height !== 'auto' ? s.height : ''));
+
+            // 4. Decoration
+            let bgCol = s.backgroundColor;
+            if (bgCol === 'rgba(0, 0, 0, 0)' || !bgCol) bgCol = 'transparent';
             setInputValue('input-bg-color', rgbToHex(bgCol));
             document.getElementById('bg-color-val').innerText = rgbToHex(bgCol);
 
-            setInputValue('input-padding', selectedEl.style.padding || computed.padding);
-            setInputValue('input-margin', selectedEl.style.margin || computed.margin);
-            setInputValue('input-width', selectedEl.style.width || (computed.width !== 'auto' ? computed.width : ''));
-            setInputValue('input-height', selectedEl.style.height || (computed.height !== 'auto' ? computed.height : ''));
+            // Radius
+            const rad = parseInt(s.borderRadius) || 0;
+            document.getElementById('input-radius').value = rad;
+            document.getElementById('radius-val').innerText = rad + 'px';
 
-            // 3. Advanced
+            // Border (Simple parsing)
+            // 테두리는 상하좌우 다를 수 있으나, 에디터에선 편의상 border-top 기준으로 표시
+            const bw = parseInt(s.borderTopWidth) || 0;
+            setInputValue('input-border-width', bw);
+            setInputValue('input-border-style', s.borderTopStyle === 'none' ? 'none' : s.borderTopStyle);
+            setInputValue('input-border-color', rgbToHex(s.borderTopColor));
+
+            // 5. Advanced & Img
             if (selectedEl.tagName === 'IMG') {
+                imgControls.style.display = 'block';
                 setInputValue('input-src', selectedEl.getAttribute('src'));
-                document.getElementById('input-src').parentElement.style.display = 'flex';
             } else {
-                document.getElementById('input-src').parentElement.style.display = 'none';
+                imgControls.style.display = 'none';
             }
 
             setInputValue('input-classes', selectedEl.className.replace('ve-hover', '').replace('ve-selected', '').trim());
             setInputValue('input-html', selectedEl.outerHTML);
         }
 
+        // Helpers
         function setInputValue(id, val) {
             const el = document.getElementById(id);
             if (el) el.value = val;
         }
 
-        // RGB -> Hex 변환 유틸
+        function getFontFamilyValue(val) {
+            if (!val) return "";
+            if (val.includes('Jua')) return "'Jua', sans-serif";
+            if (val.includes('Comfortaa')) return "'Comfortaa', cursive";
+            if (val.includes('sans-serif')) return "sans-serif";
+            if (val.includes('serif')) return "serif";
+            if (val.includes('monospace')) return "monospace";
+            return "";
+        }
+
+        function updateBtnGroup(prop, val) {
+            // align-left, align-center ...
+            ['left', 'center', 'right', 'justify'].forEach(k => {
+                const btn = document.getElementById(`btn-align-${k}`);
+                if (btn) {
+                    if (val === k) btn.classList.add('active');
+                    else btn.classList.remove('active');
+                }
+            });
+        }
+
+        function updateBtnToggle(prop, val, matches) {
+            // bold, italic, underline
+            let btnId = '';
+            if (prop === 'fontWeight') btnId = 'btn-bold';
+            if (prop === 'fontStyle') btnId = 'btn-italic';
+            if (prop === 'textDecoration') btnId = 'btn-underline';
+
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                // val이 'bold' 혹은 '700' 등이면 active
+                const isActive = matches.some(m => String(val).includes(m));
+                if (isActive) btn.classList.add('active');
+                else btn.classList.remove('active');
+            }
+        }
+
         function rgbToHex(rgb) {
             if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return '#ffffff';
             if (rgb.startsWith('#')) return rgb;
@@ -613,65 +816,91 @@
             return "#" + ((1 << 24) + (parseInt(rgbValues[0]) << 16) + (parseInt(rgbValues[1]) << 8) + parseInt(rgbValues[2])).toString(16).slice(1);
         }
 
-
-        // --- 스타일 적용 기능 (Apply Logic) ---
-
-        // 1. 단순 스타일 적용
+        // --- Apply Logic ---
         function applyStyle(prop, value) {
             if (!selectedEl) return;
             selectedEl.style[prop] = value;
-            if (prop === 'color') document.getElementById('text-color-val').innerText = value;
-            if (prop === 'backgroundColor') document.getElementById('bg-color-val').innerText = value;
+            if (prop === 'backgroundColor') document.getElementById('bg-color-val').innerText = rgbToHex(value);
+            if (prop === 'color') document.getElementById('text-color-val').innerText = rgbToHex(value);
+
+            // 만약 display가 바뀌면 사이드바 UI 갱신 필요 (Flex 옵션 노출 등)
+            if (prop === 'display') updateSidebarUI();
+
             saveState();
         }
 
-        // 2. 토글 스타일 (Bold, Italic 등)
         function toggleStyle(prop, valOn, valOff) {
             if (!selectedEl) return;
-            const current = selectedEl.style[prop] || window.getComputedStyle(selectedEl)[prop];
-            // 값 비교가 조금 까다로울 수 있음 (font-weight: 700 == bold)
-            const isBoard = (current === valOn || current === '700' || current === 'bold');
-            selectedEl.style[prop] = isBoard ? valOff : valOn;
+            const current = window.getComputedStyle(selectedEl)[prop];
+            // 대략적인 토글 로직
+            const isSet = String(current).includes(valOn) || (valOn === 'bold' && current === '700');
+            selectedEl.style[prop] = isSet ? valOff : valOn;
+            updateSidebarUI();
             saveState();
-            updateSidebarUI(); // 상태 반영
         }
 
-        // 3. 속성 적용 (src 등)
+        function updateBorder() {
+            if (!selectedEl) return;
+            const w = document.getElementById('input-border-width').value;
+            const s = document.getElementById('input-border-style').value;
+            const c = document.getElementById('input-border-color').value;
+
+            if (s === 'none') {
+                selectedEl.style.border = 'none';
+            } else {
+                const width = w ? w + 'px' : '1px';
+                selectedEl.style.border = `${width} ${s} ${c}`;
+            }
+            saveState();
+        }
+
         function applyAttribute(attr, value) {
             if (!selectedEl) return;
             selectedEl.setAttribute(attr, value);
             saveState();
         }
 
-        // 4. 클래스 적용
         function applyClasses(value) {
             if (!selectedEl) return;
-            // 에디터 내부 클래스는 보존해야 함
             const internalClasses = ['ve-hover', 've-selected'];
             selectedEl.className = value + ' ' + internalClasses.join(' ');
             saveState();
         }
 
-        // 5. Raw HTML 적용
+        function toggleHtmlEdit() {
+            const area = document.getElementById('input-html');
+            area.classList.toggle('hidden');
+        }
+
         function applyOuterHTML(value) {
             if (!selectedEl) return;
             try {
-                selectedEl.outerHTML = value;
-                // 교체되면 선택이 풀리므로 다시 찾아야 하지만 복잡하므로 일단 선택 해제
-                selectedEl = null;
-                updateSidebarUI();
-                saveState();
-                // DOM이 바뀌었으므로 이벤트 다시 연결 필요
+                // 선택 요소 교체 로직
+                // 1. 임시 div에 넣어 파싱
+                const temp = doc.createElement('div');
+                temp.innerHTML = value;
+                const newEl = temp.firstElementChild;
+                if (!newEl) return;
+
+                // 2. 교체
+                selectedEl.replaceWith(newEl);
+
+                // 3. 재설정
+                selectedEl = newEl; // 포커스 유지 노력
+                injectEditorStyles(); // 새 요소에 스타일/이벤트 없을 수 있으므로 재주입
                 enableEditing();
+
+                selectElement(selectedEl); // UI 갱신
+                saveState();
             } catch (e) {
-                alert("HTML 형식이 올바르지 않습니다.");
+                alert("HTML 오류");
             }
         }
 
-        // --- 요소 조작 (삭제, 복제) ---
+        // --- Actions ---
         function deleteSelected() {
             if (!selectedEl) return;
-            if (confirm('선택된 요소를 삭제하시겠습니까?')) {
+            if (confirm('삭제하시겠습니까?')) {
                 selectedEl.remove();
                 selectedEl = null;
                 updateSidebarUI();
@@ -685,10 +914,9 @@
             clone.classList.remove('ve-selected');
             selectedEl.insertAdjacentElement('afterend', clone);
             saveState();
-            enableEditing(); // 복제된 요소에 이벤트 연결
+            enableEditing();
         }
 
-        // --- 기타 기능 ---
         document.getElementById('img-changer').addEventListener('change', function (e) {
             const file = e.target.files[0];
             if (file && selectedEl && selectedEl.tagName === 'IMG') {
@@ -719,7 +947,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = "edited_page_v01.html";
+            a.download = "edited_page_v02.html";
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -734,28 +962,29 @@
             iframe.className = type;
         }
 
-        // --- 데모 로드 ---
         window.onload = function () {
+            // 데모 로드 (Jelly Mix 테마 맛보기)
             const demoHTML = `
-                <!DOCTYPE html>
-                <html lang="ko">
-                <head><style>
-                    body{display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;background:#f8fafc;color:#334155;} 
-                    .card{background:white;padding:40px;border-radius:16px;box-shadow:0 10px 25px rgba(0,0,0,0.05);text-align:center;max-width:400px;}
-                    h1{color:#2563eb;margin-bottom:10px;}
-                    p{line-height:1.6;margin-bottom:20px;}
-                    .btn{background:#2563eb;color:white;padding:10px 20px;text-decoration:none;border-radius:8px;display:inline-block;}
-                </style></head>
-                <body>
-                    <div class="card">
-                        <img src="https://placehold.co/100x100/2563eb/white?text=V.01" style="border-radius:50%;margin-bottom:20px;">
-                        <h1>Visual Editor v0.01</h1>
-                        <p>이제 사이드바 패널을 통해 <strong>색상, 크기, 여백</strong>을 자유롭게 조절할 수 있습니다.</p>
-                        <a href="#" class="btn">시작하기</a>
-                    </div>
-                </body>
-                </html>
-             `;
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+    <style>
+        body{display:flex;justify-content:center;align-items:center;height:100vh;font-family:'Jua',sans-serif;background:#fff0f6;margin:0;} 
+        .card{background:white;padding:50px;border-radius:40px;box-shadow:0 20px 50px rgba(255, 118, 117, 0.2);text-align:center;width:400px;border:8px solid #fff;}
+        h1{color:#a29bfe;font-size:48px;margin:0 0 20px 0;text-shadow:2px 2px 0 #dfe6e9;}
+        p{color:#636e72;font-size:20px;line-height:1.6;}
+        .btn{background:#74b9ff;color:white;padding:15px 30px;font-size:24px;border-radius:50px;border:none;margin-top:30px;display:inline-block;box-shadow:0 10px 20px rgba(116, 185, 255, 0.4);}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Jelly Editor</h1>
+        <p>왼쪽 [열기] 버튼으로<br><strong>'젤리믹스 기획서.html'</strong>을 불러와<br>수정해보세요!</p>
+        <button class="btn">시작하기</button>
+    </div>
+</body>
+</html>`;
             loadContent(demoHTML);
         }
     </script>
