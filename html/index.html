@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visual HTML Editor v0.02.01</title>
+    <title>Visual HTML Editor v0.03</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -27,8 +27,8 @@
 
         /* 사이드바 */
         #sidebar {
-            width: 340px;
-            /* 패널 확장 */
+            width: 360px;
+            /* 패널 더 확장 */
             background-color: #1e293b;
             color: #e2e8f0;
             display: flex;
@@ -241,6 +241,51 @@
         .btn-group .btn.active {
             background: #2563eb;
         }
+
+        /* Icon Grid */
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .icon-btn {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #334155;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: #94a3b8;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: #475569;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .icon-btn.active {
+            background: #2563eb;
+            color: white;
+            border: 1px solid #60a5fa;
+        }
+
+        /* Hide scrollbar for icon grid */
+        .icon-grid::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .icon-grid::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
     </style>
 </head>
 
@@ -253,9 +298,9 @@
             <div class="panel-section bg-slate-900 sticky top-0 z-10">
                 <div class="flex items-center gap-3 mb-4">
                     <div
-                        class="w-12 h-8 bg-indigo-500 rounded flex items-center justify-center font-bold text-white text-xs shadow-lg">
-                        v.02.1</div>
-                    <h1 class="font-bold text-sm">Visual Editor v0.02.01</h1>
+                        class="w-12 h-8 bg-purple-500 rounded flex items-center justify-center font-bold text-white text-xs shadow-lg">
+                        v.03</div>
+                    <h1 class="font-bold text-sm">Visual Editor v0.03</h1>
                 </div>
 
                 <div class="flex gap-2 mb-2">
@@ -290,7 +335,19 @@
                 </div>
             </div>
 
-            <!-- 3. Typography (확장됨) -->
+            <!-- 2.5 Icon Picker (조건부 표시: 아이콘 선택 시) -->
+            <div id="icon-panel" class="panel-section bg-slate-800 hidden border-l-4 border-purple-500">
+                <div class="section-title text-purple-300">Pictogram (아이콘 변경)</div>
+                <div class="mb-2">
+                    <input type="text" id="icon-search" placeholder="Search icons (e.g. user, arrow)..."
+                        onkeyup="filterIcons(this.value)" class="text-xs">
+                </div>
+                <div id="icon-grid-container" class="icon-grid">
+                    <!-- JS로 아이콘 목록이 렌더링 됩니다 -->
+                </div>
+            </div>
+
+            <!-- 3. Typography -->
             <div class="panel-section">
                 <div class="section-title">Typography (문자)</div>
 
@@ -347,7 +404,7 @@
                 </div>
             </div>
 
-            <!-- 4. Layout (Flex 추가) -->
+            <!-- 4. Layout -->
             <div class="panel-section">
                 <div class="section-title">Layout & Spacing</div>
 
@@ -363,7 +420,7 @@
                     </select>
                 </div>
 
-                <!-- Flex Controls (조건부 표시) -->
+                <!-- Flex Controls -->
                 <div id="flex-controls" class="bg-slate-800 p-2 rounded mb-2 hidden">
                     <label class="control-label block mb-1 text-blue-300">Flex 정렬</label>
                     <div class="control-row">
@@ -416,7 +473,7 @@
                 </div>
             </div>
 
-            <!-- 5. Decoration (신규) -->
+            <!-- 5. Decoration -->
             <div class="panel-section">
                 <div class="section-title">Decoration (꾸미기)</div>
 
@@ -520,6 +577,25 @@
         let isEditMode = true;
         let selectedEl = null;
 
+        // --- Icon Data (자주 쓰는 아이콘 목록) ---
+        const commonIcons = [
+            'fa-solid fa-user', 'fa-solid fa-user-secret', 'fa-regular fa-user', 'fa-solid fa-users',
+            'fa-solid fa-house', 'fa-solid fa-shop', 'fa-solid fa-building', 'fa-solid fa-landmark',
+            'fa-solid fa-magnifying-glass', 'fa-solid fa-bars', 'fa-solid fa-gear', 'fa-solid fa-bell',
+            'fa-solid fa-check', 'fa-solid fa-xmark', 'fa-solid fa-plus', 'fa-solid fa-trash',
+            'fa-solid fa-pen', 'fa-solid fa-image', 'fa-solid fa-music', 'fa-solid fa-video',
+            'fa-solid fa-heart', 'fa-regular fa-heart', 'fa-solid fa-star', 'fa-regular fa-star',
+            'fa-solid fa-thumbs-up', 'fa-solid fa-comment', 'fa-solid fa-share', 'fa-solid fa-envelope',
+            'fa-solid fa-arrow-right', 'fa-solid fa-arrow-left', 'fa-solid fa-arrow-up', 'fa-solid fa-arrow-down',
+            'fa-solid fa-chevron-right', 'fa-solid fa-chevron-left', 'fa-solid fa-chevron-down', 'fa-solid fa-caret-down',
+            'fa-solid fa-phone', 'fa-solid fa-location-dot', 'fa-solid fa-globe', 'fa-solid fa-wifi',
+            'fa-solid fa-battery-full', 'fa-solid fa-bolt', 'fa-solid fa-desktop', 'fa-solid fa-mobile',
+            'fa-solid fa-calendar', 'fa-solid fa-clock', 'fa-solid fa-circle-info', 'fa-solid fa-circle-question',
+            'fa-solid fa-gamepad', 'fa-solid fa-ghost', 'fa-solid fa-puzzle-piece', 'fa-solid fa-dice',
+            'fa-brands fa-facebook', 'fa-brands fa-twitter', 'fa-brands fa-instagram', 'fa-brands fa-github',
+            'fa-brands fa-youtube', 'fa-brands fa-discord', 'fa-brands fa-google', 'fa-brands fa-apple'
+        ];
+
         // --- Undo/Redo ---
         let historyStack = [];
         let historyIndex = -1;
@@ -574,13 +650,9 @@
             reader.readAsText(file);
         });
 
-        // 🟢 FIX: Font Awesome 강제 주입 로직 개선
         function loadContent(html, isHistoryOp = false) {
-            // 불러오는 HTML 문자열에 Font Awesome이 없다면 강제로 <head>에 주입
             if (!html.includes('font-awesome')) {
                 const faCDN = '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">';
-
-                // Head 태그가 있으면 그 안에, 없으면 HTML 시작에 붙임
                 if (html.toLowerCase().includes('<head>')) {
                     html = html.replace(/<head>/i, '<head>\n' + faCDN);
                 } else {
@@ -597,6 +669,10 @@
                 doc = iframe.contentDocument || iframe.contentWindow.document;
                 injectEditorStyles();
                 enableEditing();
+
+                // Initialize Icon Grid
+                renderIconGrid();
+
                 if (!isHistoryOp) {
                     selectedEl = null;
                     updateSidebarUI();
@@ -610,12 +686,10 @@
 
         function injectEditorStyles() {
             if (!doc) return;
-            // 만약 loadContent 단계에서 주입되지 않았을 경우를 대비한 백업 (안정성)
             if (!doc.querySelector('link[href*="font-awesome"]')) {
                 const faLink = doc.createElement('link');
                 faLink.rel = 'stylesheet';
                 faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
-                // Head가 없으면 Body에라도 붙임
                 (doc.head || doc.body).appendChild(faLink);
             }
 
@@ -623,12 +697,12 @@
 
             const style = doc.createElement('style');
             style.id = 'visual-editor-style';
-            // 🟢 FIX: i 태그(아이콘)와 hr 태그는 'Empty Box' 표시 대상에서 제외
             style.innerHTML = `
                 .ve-hover:hover { outline: 2px dashed #60a5fa !important; cursor: pointer; opacity: 0.95; }
                 .ve-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; z-index: 9999; box-shadow: 0 0 0 4px rgba(37,99,235,0.2); }
                 a { pointer-events: none; }
                 *:empty:not(img):not(br):not(hr):not(i)::before { content: 'Empty Box'; color: #ccc; font-size: 10px; display: block; background: #f8f8f8; padding: 2px; }
+                i { cursor: pointer; } 
             `;
             doc.head.appendChild(style);
         }
@@ -643,13 +717,18 @@
                 el.classList.add('ve-hover');
 
                 if (el.tagName !== 'IMG') {
-                    el.contentEditable = "true";
-                    el.addEventListener('blur', () => saveState());
-                    el.addEventListener('paste', (e) => {
-                        e.preventDefault();
-                        const text = (e.originalEvent || e).clipboardData.getData('text/plain');
-                        doc.execCommand("insertText", false, text);
-                    });
+                    // 🟢 FIX: 아이콘(i 태그)은 텍스트 편집 불가하게 설정 (클래스로만 변경)
+                    if (el.tagName === 'I') {
+                        el.contentEditable = "false";
+                    } else {
+                        el.contentEditable = "true";
+                        el.addEventListener('blur', () => saveState());
+                        el.addEventListener('paste', (e) => {
+                            e.preventDefault();
+                            const text = (e.originalEvent || e).clipboardData.getData('text/plain');
+                            doc.execCommand("insertText", false, text);
+                        });
+                    }
                 }
 
                 el.onclick = function (e) {
@@ -690,11 +769,13 @@
             const display = document.getElementById('selected-tag-display');
             const flexControls = document.getElementById('flex-controls');
             const imgControls = document.getElementById('img-control-group');
+            const iconPanel = document.getElementById('icon-panel'); // 🟢
 
             if (!selectedEl) {
                 display.innerText = "none";
                 flexControls.classList.add('hidden');
                 imgControls.style.display = 'none';
+                iconPanel.classList.add('hidden'); // 아이콘 패널 숨김
                 return;
             }
 
@@ -703,9 +784,16 @@
             if (selectedEl.id) tagName += `#${selectedEl.id}`;
             display.innerText = `<${tagName}>`;
 
+            // 🟢 Icon Panel Control
+            if (selectedEl.tagName === 'I') {
+                iconPanel.classList.remove('hidden');
+            } else {
+                iconPanel.classList.add('hidden');
+            }
+
             // Computed Style
             const s = window.getComputedStyle(selectedEl);
-            const styleRaw = selectedEl.style; // Inline style 우선 확인
+            const styleRaw = selectedEl.style;
 
             // 2. Typography
             setInputValue('input-font-family', getFontFamilyValue(s.fontFamily));
@@ -714,7 +802,6 @@
             setInputValue('input-font-size', parseInt(s.fontSize) || '');
             setInputValue('input-line-height', s.lineHeight === 'normal' ? '' : parseFloat(s.lineHeight));
 
-            // Text Align Buttons Active State
             updateBtnGroup('textAlign', s.textAlign);
             updateBtnToggle('fontWeight', s.fontWeight, ['bold', '700']);
             updateBtnToggle('fontStyle', s.fontStyle, ['italic']);
@@ -726,7 +813,7 @@
                 flexControls.classList.remove('hidden');
                 setInputValue('input-justify', s.justifyContent);
                 setInputValue('input-align', s.alignItems);
-                setInputValue('input-gap', styleRaw.gap || s.gap); // Gap은 computed가 0px로 나올 때가 많아 inline 우선
+                setInputValue('input-gap', styleRaw.gap || s.gap);
             } else {
                 flexControls.classList.add('hidden');
             }
@@ -742,13 +829,10 @@
             setInputValue('input-bg-color', rgbToHex(bgCol));
             document.getElementById('bg-color-val').innerText = rgbToHex(bgCol);
 
-            // Radius
             const rad = parseInt(s.borderRadius) || 0;
             document.getElementById('input-radius').value = rad;
             document.getElementById('radius-val').innerText = rad + 'px';
 
-            // Border (Simple parsing)
-            // 테두리는 상하좌우 다를 수 있으나, 에디터에선 편의상 border-top 기준으로 표시
             const bw = parseInt(s.borderTopWidth) || 0;
             setInputValue('input-border-width', bw);
             setInputValue('input-border-style', s.borderTopStyle === 'none' ? 'none' : s.borderTopStyle);
@@ -765,6 +849,39 @@
             setInputValue('input-classes', selectedEl.className.replace('ve-hover', '').replace('ve-selected', '').trim());
             setInputValue('input-html', selectedEl.outerHTML);
         }
+
+        // --- Icon Logic (New) ---
+        function renderIconGrid(filter = '') {
+            const container = document.getElementById('icon-grid-container');
+            container.innerHTML = '';
+
+            const filtered = commonIcons.filter(c => c.includes(filter.toLowerCase()));
+
+            filtered.forEach(iconClass => {
+                const btn = document.createElement('div');
+                btn.className = 'icon-btn';
+                btn.innerHTML = `<i class="${iconClass}"></i>`;
+                btn.onclick = () => applyIcon(iconClass);
+                container.appendChild(btn);
+            });
+        }
+
+        function filterIcons(val) {
+            renderIconGrid(val);
+        }
+
+        function applyIcon(newClass) {
+            if (!selectedEl || selectedEl.tagName !== 'I') return;
+            // ve-hover, ve-selected 등의 내부 클래스는 유지
+            const internalClasses = ['ve-hover', 've-selected'];
+            // 기존 클래스 중 내부 클래스만 남기고 다 제거한 뒤 새 아이콘 클래스 추가
+            selectedEl.className = newClass + ' ' + internalClasses.join(' ');
+
+            // 시각적 피드백
+            updateSidebarUI();
+            saveState();
+        }
+
 
         // Helpers
         function setInputValue(id, val) {
@@ -783,7 +900,6 @@
         }
 
         function updateBtnGroup(prop, val) {
-            // align-left, align-center ...
             ['left', 'center', 'right', 'justify'].forEach(k => {
                 const btn = document.getElementById(`btn-align-${k}`);
                 if (btn) {
@@ -794,7 +910,6 @@
         }
 
         function updateBtnToggle(prop, val, matches) {
-            // bold, italic, underline
             let btnId = '';
             if (prop === 'fontWeight') btnId = 'btn-bold';
             if (prop === 'fontStyle') btnId = 'btn-italic';
@@ -802,7 +917,6 @@
 
             const btn = document.getElementById(btnId);
             if (btn) {
-                // val이 'bold' 혹은 '700' 등이면 active
                 const isActive = matches.some(m => String(val).includes(m));
                 if (isActive) btn.classList.add('active');
                 else btn.classList.remove('active');
@@ -823,17 +937,13 @@
             selectedEl.style[prop] = value;
             if (prop === 'backgroundColor') document.getElementById('bg-color-val').innerText = rgbToHex(value);
             if (prop === 'color') document.getElementById('text-color-val').innerText = rgbToHex(value);
-
-            // 만약 display가 바뀌면 사이드바 UI 갱신 필요 (Flex 옵션 노출 등)
             if (prop === 'display') updateSidebarUI();
-
             saveState();
         }
 
         function toggleStyle(prop, valOn, valOff) {
             if (!selectedEl) return;
             const current = window.getComputedStyle(selectedEl)[prop];
-            // 대략적인 토글 로직
             const isSet = String(current).includes(valOn) || (valOn === 'bold' && current === '700');
             selectedEl.style[prop] = isSet ? valOff : valOn;
             updateSidebarUI();
@@ -876,22 +986,17 @@
         function applyOuterHTML(value) {
             if (!selectedEl) return;
             try {
-                // 선택 요소 교체 로직
-                // 1. 임시 div에 넣어 파싱
                 const temp = doc.createElement('div');
                 temp.innerHTML = value;
                 const newEl = temp.firstElementChild;
                 if (!newEl) return;
 
-                // 2. 교체
                 selectedEl.replaceWith(newEl);
-
-                // 3. 재설정
-                selectedEl = newEl; // 포커스 유지 노력
-                injectEditorStyles(); // 새 요소에 스타일/이벤트 없을 수 있으므로 재주입
+                selectedEl = newEl;
+                injectEditorStyles();
                 enableEditing();
 
-                selectElement(selectedEl); // UI 갱신
+                selectElement(selectedEl);
                 saveState();
             } catch (e) {
                 alert("HTML 오류");
@@ -948,7 +1053,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = "edited_page_v02.01.html";
+            a.download = "edited_page_v03.html";
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -976,10 +1081,12 @@
         h1{color:#a29bfe;font-size:48px;margin:0 0 20px 0;text-shadow:2px 2px 0 #dfe6e9;}
         p{color:#636e72;font-size:20px;line-height:1.6;}
         .btn{background:#74b9ff;color:white;padding:15px 30px;font-size:24px;border-radius:50px;border:none;margin-top:30px;display:inline-block;box-shadow:0 10px 20px rgba(116, 185, 255, 0.4);}
+        i.icon-demo { font-size: 60px; color: #ff7675; margin-bottom: 20px; }
     </style>
 </head>
 <body>
     <div class="card">
+        <i class="fa-solid fa-wand-magic-sparkles icon-demo"></i>
         <h1>Jelly Editor</h1>
         <p>왼쪽 [열기] 버튼으로<br><strong>'젤리믹스 기획서.html'</strong>을 불러와<br>수정해보세요!</p>
         <button class="btn">시작하기</button>
