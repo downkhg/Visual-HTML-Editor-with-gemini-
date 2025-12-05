@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>비주얼 HTML 에디터</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* 에디터 UI 스타일 (편집 대상 HTML과 섞이지 않도록 접두사 사용) */
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: sans-serif; }
+        
+        #app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        #sidebar {
+            width: 280px;
+            background-color: #1e293b;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #334155;
+            z-index: 10;
+        }
+
+        #editor-canvas {
+            flex: 1;
+            background-color: #f1f5f9;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            overflow: auto;
+        }
+
+        /* 실제 콘텐츠가 들어갈 아이프레임 */
+        #content-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            transition: width 0.3s;
+        }
+        
+        /* 디바이스 뷰 모드 */
+        #content-frame.mobile { width: 375px; height: 667px; }
+        #content-frame.tablet { width: 768px; height: 1024px; }
+        #content-frame.desktop { width: 100%; height: 100%; }
+
+        .tool-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            width: 100%;
+            text-align: left;
+            border-radius: 6px;
+            transition: all 0.2s;
+            color: #94a3b8;
+        }
+        .tool-btn:hover { background-color: #334155; color: white; }
+        .tool-btn.active { background-color: #2563eb; color: white; }
+        
+        .section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: bold;
+            margin: 20px 0 10px 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <!-- 사이드바: 툴바 -->
+        <aside id="sidebar" class="p-4">
+            <div class="flex items-center gap-3 mb-8 px-2">
+                <div class="w-8 h-8 bg-blue-500 rounded flex items-center justify-center font-bold text-white">E</div>
+                <h1 class="font-bold text-lg">Visual Editor</h1>
+            </div>
+
+            <div class="section-title">파일</div>
+            <button onclick="document.getElementById('file-upload').click()" class="tool-btn">
+                <i class="fa-solid fa-folder-open"></i> HTML 열기
+            </button>
+            <input type="file" id="file-upload" accept=".html,.htm" hidden>
+            
+            <button onclick="saveHTML()" class="tool-btn text-green-400 hover:text-green-300">
+                <i class="fa-solid fa-download"></i> HTML 저장 (다운로드)
+            </button>
+
+            <div class="section-title">편집 도구</div>
+            <button id="btn-edit-mode" onclick="toggleEditMode()" class="tool-btn active">
+                <i class="fa-solid fa-pen-nib"></i> 편집 모드 (ON)
+            </button>
+            <button onclick="injectImageHandler()" class="tool-btn">
+                <i class="fa-regular fa-image"></i> 이미지 교체 기능 재연결
+            </button>
+
+            <div class="section-title">뷰 모드</div>
+            <div class="flex gap-2 px-2">
+                <button onclick="setDevice('desktop')" class="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white flex-1"><i class="fa-solid fa-desktop"></i></button>
+                <button onclick="setDevice('tablet')" class="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white flex-1"><i class="fa-solid fa-tablet-screen-button"></i></button>
+                <button onclick="setDevice('mobile')" class="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white flex-1"><i class="fa-solid fa-mobile-screen-button"></i></button>
+            </div>
+
+            <div class="mt-auto pt-4 text-xs text-slate-500 px-2">
+                <p>팁: 텍스트를 클릭하여 수정하세요.<br>이미지를 클릭하여 교체하세요.</p>
+            </div>
+        </aside>
+
+        <!-- 메인 캔버스 -->
+        <main id="editor-canvas">
+            <iframe id="content-frame" class="desktop"></iframe>
+        </main>
+    </div>
+
+    <!-- 이미지 업로드용 히든 인풋 -->
+    <input type="file" id="img-changer" accept="image/*" hidden>
+
+    <script>
+        const iframe = document.getElementById('content-frame');
+        let doc = null; // iframe document
+        let isEditMode = true;
+        let currentTargetImg = null;
+
+        // 1. 파일 열기
+        document.getElementById('file-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const htmlContent = event.target.result;
+                loadContent(htmlContent);
+            };
+            reader.readAsText(file);
+        });
+
+        function loadContent(html) {
+            // iframe에 내용 쓰기
+            doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(html);
+            doc.close();
+
+            // 로드 완료 후 스크립트 주입
+            iframe.onload = function() {
+                doc = iframe.contentDocument || iframe.contentWindow.document;
+                injectEditorStyles();
+                if (isEditMode) enableEditing();
+            };
+        }
+
+        // 2. 편집 기능 활성화 (매직 스크립트 주입)
+        function injectEditorStyles() {
+            if (!doc) return;
+            const style = doc.createElement('style');
+            style.id = 'visual-editor-style';
+            style.innerHTML = `
+                .ve-editable-text:hover {
+                    outline: 2px dashed #3b82f6 !important;
+                    background-color: rgba(59, 130, 246, 0.1);
+                    cursor: text;
+                }
+                .ve-editable-img:hover {
+                    outline: 3px solid #ef4444 !important;
+                    cursor: pointer;
+                    opacity: 0.8;
+                }
+                /* 링크 이동 방지 */
+                a.ve-disabled { pointer-events: none; }
+            `;
+            doc.head.appendChild(style);
+        }
+
+        function enableEditing() {
+            if (!doc) return;
+            isEditMode = true;
+            updateEditBtn();
+
+            // 텍스트 요소 찾기 (P, H1~H6, SPAN, DIV, LI, A)
+            // 텍스트 노드가 있는 요소만 선택
+            const allElements = doc.body.getElementsByTagName('*');
+            for (let el of allElements) {
+                // 텍스트를 직접 포함하고 있거나, 제목 태그인 경우
+                if ((el.childNodes.length > 0 && el.childNodes[0].nodeType === 3 && el.innerText.trim().length > 0) 
+                    || ['H1','H2','H3','H4','H5','H6','P','LI','BUTTON'].includes(el.tagName)) {
+                    
+                    el.contentEditable = "true";
+                    el.classList.add('ve-editable-text');
+                }
+                
+                // 이미지 처리
+                if (el.tagName === 'IMG') {
+                    el.classList.add('ve-editable-img');
+                    // 기존 클릭 이벤트 제거 후 새 이벤트 추가
+                    el.onclick = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if(!isEditMode) return;
+                        
+                        // 부모창(이 파일)의 이미지 업로더 실행
+                        currentTargetImg = el;
+                        document.getElementById('img-changer').click();
+                    };
+                }
+
+                // 링크 이동 방지
+                if (el.tagName === 'A') {
+                    el.classList.add('ve-disabled');
+                    el.onclick = (e) => { if(isEditMode) e.preventDefault(); };
+                }
+            }
+        }
+
+        function disableEditing() {
+            if (!doc) return;
+            isEditMode = false;
+            updateEditBtn();
+
+            const editables = doc.querySelectorAll('[contenteditable]');
+            editables.forEach(el => {
+                el.removeAttribute('contenteditable');
+                el.classList.remove('ve-editable-text');
+            });
+
+            const images = doc.querySelectorAll('.ve-editable-img');
+            images.forEach(el => {
+                el.classList.remove('ve-editable-img');
+                el.onclick = null; // 이벤트 제거
+            });
+            
+             const links = doc.querySelectorAll('.ve-disabled');
+            links.forEach(el => el.classList.remove('ve-disabled'));
+        }
+
+        function toggleEditMode() {
+            if (isEditMode) disableEditing();
+            else enableEditing();
+        }
+
+        function updateEditBtn() {
+            const btn = document.getElementById('btn-edit-mode');
+            if (isEditMode) {
+                btn.classList.add('active');
+                btn.innerHTML = '<i class="fa-solid fa-pen-nib"></i> 편집 모드 (ON)';
+            } else {
+                btn.classList.remove('active');
+                btn.innerHTML = '<i class="fa-solid fa-eye"></i> 미리보기 모드';
+            }
+        }
+
+        // 3. 이미지 교체 로직
+        document.getElementById('img-changer').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file && currentTargetImg) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    currentTargetImg.src = evt.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+            this.value = ''; // 초기화
+        });
+        
+        // 가끔 동적으로 생성된 요소 때문에 핸들러가 끊기면 수동 연결
+        function injectImageHandler() {
+             enableEditing(); // 다시 실행해서 재연결
+        }
+
+        // 4. 저장 (다운로드)
+        function saveHTML() {
+            if (!doc) {
+                alert("저장할 파일이 없습니다.");
+                return;
+            }
+
+            // 저장 전 클린업: 에디터용 클래스와 스타일 제거
+            const wasEditMode = isEditMode;
+            disableEditing(); // 편집 모드 끄기 (속성 제거)
+
+            // 주입했던 스타일 태그 제거
+            const styleTag = doc.getElementById('visual-editor-style');
+            if (styleTag) styleTag.remove();
+
+            // HTML 문자열 추출
+            const htmlContent = doc.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: "text/html" });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "edited_page.html";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            // 다시 편집 모드 복구
+            injectEditorStyles(); // 스타일 다시 주입
+            if (wasEditMode) enableEditing();
+        }
+
+        // 5. 뷰 모드 변경
+        function setDevice(type) {
+            iframe.className = type;
+        }
+
+        // 초기 데모 로드 (사용자가 바로 느낌을 알 수 있도록 젤리 PPT 코드 로드)
+        window.onload = function() {
+             // 앞서 만든 Jelly PPT 코드를 기본 예제로 로드해봅니다. (실제 환경에선 빈 화면이거나 도움말이 뜸)
+             const demoHTML = `
+                <!DOCTYPE html>
+                <html lang="ko">
+                <head><style>body{display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;background:#f0f9ff;text-align:center;} h1{color:#0284c7;}</style></head>
+                <body>
+                    <div>
+                        <h1>환영합니다! 👋</h1>
+                        <p>왼쪽 메뉴의 [HTML 열기]를 눌러 파일을 불러오세요.</p>
+                        <p>또는 이 텍스트를 클릭해서 바로 수정해보세요.</p>
+                        <br>
+                        <img src="https://placehold.co/100x100?text=IMG" style="border-radius:50%">
+                        <p><small>이미지를 클릭하면 교체됩니다.</small></p>
+                    </div>
+                </body>
+                </html>
+             `;
+             loadContent(demoHTML);
+        }
+
+    </script>
+</body>
+</html>
