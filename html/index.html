@@ -4,11 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visual HTML Editor v0.03.01</title>
+    <title>Visual HTML Editor v0.04</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        /* --- 에디터 UI 스타일 (편집 대상과 분리) --- */
+        /* --- 에디터 UI 스타일 --- */
         body,
         html {
             margin: 0;
@@ -18,7 +18,6 @@
             font-family: 'Pretendard', sans-serif;
         }
 
-        /* 레이아웃 */
         #app-container {
             display: flex;
             height: 100vh;
@@ -28,7 +27,6 @@
         /* 사이드바 */
         #sidebar {
             width: 360px;
-            /* 패널 더 확장 */
             background-color: #1e293b;
             color: #e2e8f0;
             display: flex;
@@ -38,7 +36,6 @@
             overflow-y: auto;
         }
 
-        /* 스크롤바 커스텀 */
         #sidebar::-webkit-scrollbar {
             width: 6px;
         }
@@ -52,7 +49,6 @@
         #editor-canvas {
             flex: 1;
             background-color: #cbd5e1;
-            /* 캔버스 배경 */
             position: relative;
             display: flex;
             justify-content: center;
@@ -63,7 +59,7 @@
             background-size: 20px 20px;
         }
 
-        /* 아이프레임 (편집 화면) */
+        /* 아이프레임 */
         #content-frame {
             background: white;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
@@ -153,15 +149,6 @@
             cursor: pointer;
         }
 
-        input[type="color"]::-webkit-color-swatch-wrapper {
-            padding: 0;
-        }
-
-        input[type="color"]::-webkit-color-swatch {
-            border: 1px solid #475569;
-            border-radius: 4px;
-        }
-
         input[type="range"] {
             width: 100%;
             accent-color: #3b82f6;
@@ -189,14 +176,6 @@
             background-color: #475569;
         }
 
-        .btn.primary {
-            background-color: #2563eb;
-        }
-
-        .btn.primary:hover {
-            background-color: #1d4ed8;
-        }
-
         .btn.danger {
             background-color: #ef4444;
             color: white;
@@ -206,11 +185,6 @@
             background-color: #3b82f6;
             color: white;
             border: 1px solid #60a5fa;
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
         }
 
         .btn-icon {
@@ -270,90 +244,68 @@
             color: white;
             transform: scale(1.1);
         }
-
-        .icon-btn.active {
-            background: #2563eb;
-            color: white;
-            border: 1px solid #60a5fa;
-        }
-
-        /* Hide scrollbar for icon grid */
-        .icon-grid::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        .icon-grid::-webkit-scrollbar-thumb {
-            background: #475569;
-            border-radius: 2px;
-        }
     </style>
 </head>
 
 <body>
 
     <div id="app-container">
-        <!-- 사이드바 -->
         <aside id="sidebar">
-            <!-- 1. 헤더 & 파일 관리 -->
             <div class="panel-section bg-slate-900 sticky top-0 z-10">
                 <div class="flex items-center gap-3 mb-4">
                     <div
-                        class="w-12 h-8 bg-purple-500 rounded flex items-center justify-center font-bold text-white text-xs shadow-lg">
-                        v.03</div>
-                    <h1 class="font-bold text-sm">Visual Editor v0.03</h1>
+                        class="w-12 h-8 bg-blue-600 rounded flex items-center justify-center font-bold text-white text-xs shadow-lg">
+                        v.04</div>
+                    <h1 class="font-bold text-sm">Visual Editor <span class="text-slate-500 font-normal">v0.04</span>
+                    </h1>
                 </div>
 
                 <div class="flex gap-2 mb-2">
                     <button onclick="document.getElementById('file-upload').click()" class="btn flex-1"><i
                             class="fa-solid fa-folder-open"></i> 열기</button>
-                    <button onclick="saveHTML()" class="btn flex-1 text-green-400"><i class="fa-solid fa-download"></i>
-                        저장</button>
+                    <button onclick="app.saveHTML()" class="btn flex-1 text-green-400"><i
+                            class="fa-solid fa-download"></i> 저장</button>
                 </div>
                 <input type="file" id="file-upload" accept=".html,.htm" hidden>
 
                 <div class="flex gap-2">
-                    <button onclick="undo()" class="btn flex-1 text-yellow-400" title="Ctrl+Z"><i
+                    <button onclick="app.undo()" class="btn flex-1 text-yellow-400" title="Ctrl+Z"><i
                             class="fa-solid fa-rotate-left"></i> Undo</button>
-                    <button onclick="redo()" class="btn flex-1 text-yellow-400" title="Ctrl+Y"><i
+                    <button onclick="app.redo()" class="btn flex-1 text-yellow-400" title="Ctrl+Y"><i
                             class="fa-solid fa-rotate-right"></i> Redo</button>
                 </div>
             </div>
 
-            <!-- 2. 선택된 요소 정보 -->
             <div class="panel-section border-b border-slate-700 bg-slate-800/50">
                 <div class="section-title">
                     <span>Selection</span>
                     <span id="selected-tag-display" class="text-xs text-blue-300 font-mono">none</span>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="selectParent()" class="btn btn-icon flex-1" title="부모 선택 (UP)"><i
+                    <button onclick="app.selectParent()" class="btn btn-icon flex-1" title="부모 선택 (UP)"><i
                             class="fa-solid fa-arrow-up"></i></button>
-                    <button onclick="cloneSelected()" class="btn btn-icon flex-1" title="복제"><i
+                    <button onclick="app.cloneSelected()" class="btn btn-icon flex-1" title="복제"><i
                             class="fa-regular fa-clone"></i></button>
-                    <button onclick="deleteSelected()" class="btn btn-icon flex-1 danger" title="삭제"><i
+                    <button onclick="app.deleteSelected()" class="btn btn-icon flex-1 danger" title="삭제"><i
                             class="fa-solid fa-trash"></i></button>
                 </div>
             </div>
 
-            <!-- 2.5 Icon Picker (조건부 표시: 아이콘 선택 시) -->
             <div id="icon-panel" class="panel-section bg-slate-800 hidden border-l-4 border-purple-500">
-                <div class="section-title text-purple-300">Pictogram (아이콘 변경)</div>
+                <div class="section-title text-purple-300">Pictogram</div>
                 <div class="mb-2">
-                    <input type="text" id="icon-search" placeholder="Search icons (e.g. user, arrow)..."
-                        onkeyup="filterIcons(this.value)" class="text-xs">
+                    <input type="text" placeholder="Search icons..." onkeyup="app.renderIconGrid(this.value)"
+                        class="text-xs">
                 </div>
-                <div id="icon-grid-container" class="icon-grid">
-                    <!-- JS로 아이콘 목록이 렌더링 됩니다 -->
-                </div>
+                <div id="icon-grid-container" class="icon-grid"></div>
             </div>
 
-            <!-- 3. Typography -->
             <div class="panel-section">
-                <div class="section-title">Typography (문자)</div>
+                <div class="section-title">Typography</div>
 
                 <div class="mb-2">
                     <label class="control-label block mb-1">폰트 (Font Family)</label>
-                    <select id="input-font-family" onchange="applyStyle('fontFamily', this.value)">
+                    <select class="style-control" data-style-prop="fontFamily">
                         <option value="">기본 (Inherit)</option>
                         <option value="'Jua', sans-serif">Jua (둥근체)</option>
                         <option value="'Comfortaa', cursive">Comfortaa (영문 둥근체)</option>
@@ -366,51 +318,48 @@
                 <div class="control-row">
                     <span class="control-label">색상</span>
                     <div class="flex gap-2 items-center flex-1 justify-end">
-                        <span id="text-color-val" class="text-xs text-slate-400">#000000</span>
-                        <input type="color" id="input-color" onchange="applyStyle('color', this.value)">
+                        <input type="color" class="style-control" data-style-prop="color">
                     </div>
                 </div>
 
                 <div class="control-grid mb-2">
                     <div>
                         <label class="control-label block mb-1">크기 (px)</label>
-                        <input type="number" id="input-font-size" onchange="applyStyle('fontSize', this.value + 'px')">
+                        <input type="number" class="style-control" data-style-prop="fontSize" data-unit="px">
                     </div>
                     <div>
                         <label class="control-label block mb-1">줄 간격</label>
-                        <input type="number" step="0.1" id="input-line-height"
-                            onchange="applyStyle('lineHeight', this.value)">
+                        <input type="number" step="0.1" class="style-control" data-style-prop="lineHeight">
                     </div>
                 </div>
 
                 <div class="btn-group mb-2">
-                    <button onclick="applyStyle('textAlign', 'left')" class="btn" id="btn-align-left"><i
+                    <button class="btn style-btn" data-style-prop="textAlign" data-value="left"><i
                             class="fa-solid fa-align-left"></i></button>
-                    <button onclick="applyStyle('textAlign', 'center')" class="btn" id="btn-align-center"><i
+                    <button class="btn style-btn" data-style-prop="textAlign" data-value="center"><i
                             class="fa-solid fa-align-center"></i></button>
-                    <button onclick="applyStyle('textAlign', 'right')" class="btn" id="btn-align-right"><i
+                    <button class="btn style-btn" data-style-prop="textAlign" data-value="right"><i
                             class="fa-solid fa-align-right"></i></button>
-                    <button onclick="applyStyle('textAlign', 'justify')" class="btn" id="btn-align-justify"><i
+                    <button class="btn style-btn" data-style-prop="textAlign" data-value="justify"><i
                             class="fa-solid fa-align-justify"></i></button>
                 </div>
 
                 <div class="btn-group">
-                    <button onclick="toggleStyle('fontWeight', 'bold', 'normal')" class="btn" id="btn-bold"><i
+                    <button class="btn style-toggle" data-style-prop="fontWeight" data-on="bold" data-off="normal"><i
                             class="fa-solid fa-bold"></i></button>
-                    <button onclick="toggleStyle('fontStyle', 'italic', 'normal')" class="btn" id="btn-italic"><i
+                    <button class="btn style-toggle" data-style-prop="fontStyle" data-on="italic" data-off="normal"><i
                             class="fa-solid fa-italic"></i></button>
-                    <button onclick="toggleStyle('textDecoration', 'underline', 'none')" class="btn"
-                        id="btn-underline"><i class="fa-solid fa-underline"></i></button>
+                    <button class="btn style-toggle" data-style-prop="textDecoration" data-on="underline"
+                        data-off="none"><i class="fa-solid fa-underline"></i></button>
                 </div>
             </div>
 
-            <!-- 4. Layout -->
             <div class="panel-section">
                 <div class="section-title">Layout & Spacing</div>
 
                 <div class="mb-2">
-                    <label class="control-label block mb-1">배치 방식 (Display)</label>
-                    <select id="input-display" onchange="applyStyle('display', this.value); updateSidebarUI();">
+                    <label class="control-label block mb-1">배치 (Display)</label>
+                    <select class="style-control" data-style-prop="display" id="input-display">
                         <option value="block">Block</option>
                         <option value="flex">Flex (정렬 컨테이너)</option>
                         <option value="inline">Inline</option>
@@ -420,12 +369,11 @@
                     </select>
                 </div>
 
-                <!-- Flex Controls -->
                 <div id="flex-controls" class="bg-slate-800 p-2 rounded mb-2 hidden">
                     <label class="control-label block mb-1 text-blue-300">Flex 정렬</label>
                     <div class="control-row">
                         <span class="control-label text-xs">가로</span>
-                        <select id="input-justify" class="text-xs" onchange="applyStyle('justifyContent', this.value)">
+                        <select class="style-control text-xs" data-style-prop="justifyContent">
                             <option value="flex-start">시작 (Left)</option>
                             <option value="center">중앙 (Center)</option>
                             <option value="flex-end">끝 (Right)</option>
@@ -435,7 +383,7 @@
                     </div>
                     <div class="control-row">
                         <span class="control-label text-xs">세로</span>
-                        <select id="input-align" class="text-xs" onchange="applyStyle('alignItems', this.value)">
+                        <select class="style-control text-xs" data-style-prop="alignItems">
                             <option value="stretch">채우기 (Stretch)</option>
                             <option value="flex-start">상단 (Top)</option>
                             <option value="center">중앙 (Middle)</option>
@@ -443,96 +391,89 @@
                         </select>
                     </div>
                     <div class="control-row">
-                        <span class="control-label text-xs">간격 (Gap)</span>
-                        <input type="text" id="input-gap" placeholder="10px" class="text-xs"
-                            onchange="applyStyle('gap', this.value)">
+                        <span class="control-label text-xs">Gap</span>
+                        <input type="text" class="style-control text-xs" data-style-prop="gap" placeholder="10px">
                     </div>
                 </div>
 
                 <div class="control-grid">
                     <div>
                         <label class="control-label block mb-1">Pad</label>
-                        <input type="text" id="input-padding" placeholder="10px"
-                            onchange="applyStyle('padding', this.value)">
+                        <input type="text" class="style-control" data-style-prop="padding" placeholder="10px">
                     </div>
                     <div>
                         <label class="control-label block mb-1">Margin</label>
-                        <input type="text" id="input-margin" placeholder="0 auto"
-                            onchange="applyStyle('margin', this.value)">
+                        <input type="text" class="style-control" data-style-prop="margin" placeholder="0 auto">
                     </div>
                     <div>
                         <label class="control-label block mb-1">W</label>
-                        <input type="text" id="input-width" placeholder="100%"
-                            onchange="applyStyle('width', this.value)">
+                        <input type="text" class="style-control" data-style-prop="width" placeholder="100%">
                     </div>
                     <div>
                         <label class="control-label block mb-1">H</label>
-                        <input type="text" id="input-height" placeholder="auto"
-                            onchange="applyStyle('height', this.value)">
+                        <input type="text" class="style-control" data-style-prop="height" placeholder="auto">
                     </div>
                 </div>
             </div>
 
-            <!-- 5. Decoration -->
             <div class="panel-section">
-                <div class="section-title">Decoration (꾸미기)</div>
+                <div class="section-title">Decoration</div>
 
                 <div class="control-row">
                     <span class="control-label">배경색</span>
                     <div class="flex gap-2 items-center flex-1 justify-end">
-                        <span id="bg-color-val" class="text-xs text-slate-400">none</span>
-                        <input type="color" id="input-bg-color" onchange="applyStyle('backgroundColor', this.value)">
+                        <input type="color" class="style-control" data-style-prop="backgroundColor">
                     </div>
                 </div>
 
                 <div class="mb-3">
                     <div class="control-row">
-                        <label class="control-label">둥근 모서리 (Radius)</label>
+                        <label class="control-label">Radius</label>
                         <span id="radius-val" class="text-xs text-blue-300">0px</span>
                     </div>
-                    <input type="range" id="input-radius" min="0" max="100" value="0"
-                        oninput="applyStyle('borderRadius', this.value + 'px'); document.getElementById('radius-val').innerText = this.value + 'px'">
+                    <input type="range" class="style-control" data-style-prop="borderRadius" data-unit="px" min="0"
+                        max="100" value="0"
+                        oninput="document.getElementById('radius-val').innerText = this.value + 'px'">
                 </div>
 
                 <div class="mb-3">
                     <label class="control-label block mb-1">테두리 (Border)</label>
                     <div class="flex gap-1">
-                        <input type="number" id="input-border-width" placeholder="px" style="width: 50px"
-                            onchange="updateBorder()">
-                        <select id="input-border-style" onchange="updateBorder()">
+                        <input type="number" id="border-width" placeholder="px" style="width: 50px"
+                            class="border-group">
+                        <select id="border-style" class="border-group">
                             <option value="none">없음</option>
                             <option value="solid">실선</option>
                             <option value="dashed">점선</option>
                             <option value="dotted">도트</option>
                         </select>
-                        <input type="color" id="input-border-color" value="#000000" onchange="updateBorder()">
+                        <input type="color" id="border-color" value="#000000" class="border-group">
                     </div>
                 </div>
 
                 <div class="mb-1">
                     <label class="control-label block mb-1">그림자 (Shadow)</label>
                     <div class="btn-group">
-                        <button onclick="applyStyle('boxShadow', 'none')" class="btn flex-1 text-xs">X</button>
-                        <button onclick="applyStyle('boxShadow', '0 2px 5px rgba(0,0,0,0.1)')"
-                            class="btn flex-1 text-xs">약</button>
-                        <button onclick="applyStyle('boxShadow', '0 10px 20px rgba(0,0,0,0.15)')"
-                            class="btn flex-1 text-xs">중</button>
-                        <button onclick="applyStyle('boxShadow', '0 20px 50px rgba(0,0,0,0.25)')"
-                            class="btn flex-1 text-xs">강</button>
-                        <button onclick="applyStyle('boxShadow', '0 0 15px rgba(255, 255, 255, 0.8)')"
-                            class="btn flex-1 text-xs"><i class="fa-solid fa-sun"></i></button>
+                        <button class="btn style-btn flex-1 text-xs" data-style-prop="boxShadow"
+                            data-value="none">X</button>
+                        <button class="btn style-btn flex-1 text-xs" data-style-prop="boxShadow"
+                            data-value="0 2px 5px rgba(0,0,0,0.1)">약</button>
+                        <button class="btn style-btn flex-1 text-xs" data-style-prop="boxShadow"
+                            data-value="0 10px 20px rgba(0,0,0,0.15)">중</button>
+                        <button class="btn style-btn flex-1 text-xs" data-style-prop="boxShadow"
+                            data-value="0 20px 50px rgba(0,0,0,0.25)">강</button>
                     </div>
                 </div>
             </div>
 
-            <!-- 6. Advanced -->
             <div class="panel-section">
                 <div class="section-title">Advanced</div>
 
                 <div class="mb-2" id="img-control-group" style="display:none;">
                     <label class="control-label block mb-1">이미지 소스 (SRC)</label>
                     <div class="flex gap-1">
-                        <input type="text" id="input-src" class="text-xs" onchange="applyAttribute('src', this.value)">
+                        <input type="text" id="input-src" class="text-xs"
+                            onchange="app.applyAttribute('src', this.value)">
                         <button onclick="document.getElementById('img-changer').click()" class="btn btn-icon"><i
                                 class="fa-regular fa-image"></i></button>
                     </div>
@@ -540,31 +481,30 @@
 
                 <div class="mb-2">
                     <label class="control-label block mb-1">Classes</label>
-                    <input type="text" id="input-classes" onchange="applyClasses(this.value)">
+                    <input type="text" id="input-classes" onchange="app.applyClasses(this.value)">
                 </div>
 
                 <div>
-                    <button onclick="toggleHtmlEdit()" class="btn w-full text-xs mb-1">Raw HTML 편집 <i
+                    <button onclick="app.toggleHtmlEdit()" class="btn w-full text-xs mb-1">Raw HTML 편집 <i
                             class="fa-solid fa-code ml-1"></i></button>
                     <textarea id="input-html" rows="4" class="font-mono text-xs hidden"
-                        onchange="applyOuterHTML(this.value)"></textarea>
+                        onchange="app.applyOuterHTML(this.value)"></textarea>
                 </div>
             </div>
 
             <div class="mt-auto panel-section bg-slate-900 border-t border-slate-700">
                 <div class="flex gap-2">
-                    <button onclick="setDevice('desktop')" class="btn flex-1" title="PC"><i
+                    <button onclick="app.setDevice('desktop')" class="btn flex-1"><i
                             class="fa-solid fa-desktop"></i></button>
-                    <button onclick="setDevice('tablet')" class="btn flex-1" title="Tablet"><i
+                    <button onclick="app.setDevice('tablet')" class="btn flex-1"><i
                             class="fa-solid fa-tablet-screen-button"></i></button>
-                    <button onclick="setDevice('mobile')" class="btn flex-1" title="Mobile"><i
+                    <button onclick="app.setDevice('mobile')" class="btn flex-1"><i
                             class="fa-solid fa-mobile-screen-button"></i></button>
                 </div>
             </div>
         </aside>
 
-        <!-- 메인 캔버스 -->
-        <main id="editor-canvas" onclick="deselectAll(event)">
+        <main id="editor-canvas" onclick="app.deselectAll(event)">
             <iframe id="content-frame" class="desktop"></iframe>
         </main>
     </div>
@@ -572,510 +512,541 @@
     <input type="file" id="img-changer" accept="image/*" hidden>
 
     <script>
-        const iframe = document.getElementById('content-frame');
-        let doc = null;
-        let isEditMode = true;
-        let selectedEl = null;
-
-        // --- Icon Data (자주 쓰는 아이콘 목록) ---
-        const commonIcons = [
-            'fa-solid fa-user', 'fa-solid fa-user-secret', 'fa-regular fa-user', 'fa-solid fa-users',
-            'fa-solid fa-house', 'fa-solid fa-shop', 'fa-solid fa-building', 'fa-solid fa-landmark',
-            'fa-solid fa-magnifying-glass', 'fa-solid fa-bars', 'fa-solid fa-gear', 'fa-solid fa-bell',
-            'fa-solid fa-check', 'fa-solid fa-xmark', 'fa-solid fa-plus', 'fa-solid fa-trash',
-            'fa-solid fa-pen', 'fa-solid fa-image', 'fa-solid fa-music', 'fa-solid fa-video',
-            'fa-solid fa-heart', 'fa-regular fa-heart', 'fa-solid fa-star', 'fa-regular fa-star',
-            'fa-solid fa-thumbs-up', 'fa-solid fa-comment', 'fa-solid fa-share', 'fa-solid fa-envelope',
-            'fa-solid fa-arrow-right', 'fa-solid fa-arrow-left', 'fa-solid fa-arrow-up', 'fa-solid fa-arrow-down',
-            'fa-solid fa-chevron-right', 'fa-solid fa-chevron-left', 'fa-solid fa-chevron-down', 'fa-solid fa-caret-down',
-            'fa-solid fa-phone', 'fa-solid fa-location-dot', 'fa-solid fa-globe', 'fa-solid fa-wifi',
-            'fa-solid fa-battery-full', 'fa-solid fa-bolt', 'fa-solid fa-desktop', 'fa-solid fa-mobile',
-            'fa-solid fa-calendar', 'fa-solid fa-clock', 'fa-solid fa-circle-info', 'fa-solid fa-circle-question',
-            'fa-solid fa-gamepad', 'fa-solid fa-ghost', 'fa-solid fa-puzzle-piece', 'fa-solid fa-dice',
-            'fa-brands fa-facebook', 'fa-brands fa-twitter', 'fa-brands fa-instagram', 'fa-brands fa-github',
-            'fa-brands fa-youtube', 'fa-brands fa-discord', 'fa-brands fa-google', 'fa-brands fa-apple'
-        ];
-
-        // --- Undo/Redo ---
-        let historyStack = [];
-        let historyIndex = -1;
-        const MAX_HISTORY = 40;
-
-        function saveState() {
-            if (!doc) return;
-            const style = doc.getElementById('visual-editor-style');
-            if (style) style.remove();
-
-            const selected = doc.querySelector('.ve-selected');
-            if (selected) selected.classList.remove('ve-selected');
-
-            const html = doc.documentElement.outerHTML;
-
-            injectEditorStyles();
-            if (selectedEl && doc.contains(selectedEl)) {
-                selectedEl.classList.add('ve-selected');
+        /**
+         * GUIManager Class
+         * - 모든 UI 이벤트와 스타일 동기화를 중앙에서 관리
+         */
+        class GUIManager {
+            constructor() {
+                this.controls = [];
+                this.init();
             }
 
-            if (historyIndex < historyStack.length - 1) {
-                historyStack = historyStack.slice(0, historyIndex + 1);
-            }
-            historyStack.push(html);
-            historyIndex++;
-            if (historyStack.length > MAX_HISTORY) {
-                historyStack.shift();
-                historyIndex--;
-            }
-        }
+            init() {
+                // 1. Style Control Inputs (Input, Select)
+                const inputs = document.querySelectorAll('.style-control');
+                inputs.forEach(el => {
+                    this.controls.push(el);
+                    el.addEventListener('input', (e) => this.handleInput(e));
+                    el.addEventListener('change', (e) => this.handleInput(e)); // for color picker compat
+                });
 
-        function undo() {
-            if (historyIndex > 0) {
-                historyIndex--;
-                loadContent(historyStack[historyIndex], true);
+                // 2. Style Buttons (Alignment, Shadow etc)
+                const btns = document.querySelectorAll('.style-btn');
+                btns.forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const prop = btn.dataset.styleProp;
+                        const val = btn.dataset.value;
+                        app.applyStyle(prop, val);
+                        this.syncUI(app.selectedEl); // 버튼 클릭 시 UI 갱신 (Active 상태 변경 등)
+                    });
+                });
+
+                // 3. Style Toggles (Bold, Italic)
+                const toggles = document.querySelectorAll('.style-toggle');
+                toggles.forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const prop = btn.dataset.styleProp;
+                        const onVal = btn.dataset.on;
+                        const offVal = btn.dataset.off;
+                        app.toggleStyle(prop, onVal, offVal);
+                    });
+                });
+
+                // 4. Border Group (Complex Logic)
+                const borderInputs = document.querySelectorAll('.border-group');
+                borderInputs.forEach(el => {
+                    el.addEventListener('change', () => this.handleBorderChange());
+                    el.addEventListener('input', () => this.handleBorderChange());
+                });
             }
-        }
 
-        function redo() {
-            if (historyIndex < historyStack.length - 1) {
-                historyIndex++;
-                loadContent(historyStack[historyIndex], true);
-            }
-        }
+            // Input Event Handler
+            handleInput(e) {
+                if (!app.selectedEl) return;
+                const target = e.target;
+                const prop = target.dataset.styleProp;
+                let val = target.value;
+                const unit = target.dataset.unit || '';
 
-        // --- Core ---
-        document.getElementById('file-upload').addEventListener('change', function (e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => loadContent(e.target.result);
-            reader.readAsText(file);
-        });
+                if (val && unit && !val.includes(unit)) {
+                    val += unit;
+                }
 
-        function loadContent(html, isHistoryOp = false) {
-            if (!html.includes('font-awesome')) {
-                const faCDN = '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">';
-                if (html.toLowerCase().includes('<head>')) {
-                    html = html.replace(/<head>/i, '<head>\n' + faCDN);
-                } else {
-                    html = faCDN + html;
+                app.applyStyle(prop, val);
+
+                // 특수 로직: Display 변경 시 사이드바 UI 갱신 필요
+                if (prop === 'display') {
+                    this.syncUI(app.selectedEl);
                 }
             }
 
-            doc = iframe.contentDocument || iframe.contentWindow.document;
-            doc.open();
-            doc.write(html);
-            doc.close();
+            handleBorderChange() {
+                if (!app.selectedEl) return;
+                const w = document.getElementById('border-width').value;
+                const s = document.getElementById('border-style').value;
+                const c = document.getElementById('border-color').value;
 
-            iframe.onload = function () {
-                doc = iframe.contentDocument || iframe.contentWindow.document;
-                injectEditorStyles();
-                enableEditing();
-
-                // Initialize Icon Grid
-                renderIconGrid();
-
-                if (!isHistoryOp) {
-                    selectedEl = null;
-                    updateSidebarUI();
-                    setTimeout(() => saveState(), 100);
+                if (s === 'none') {
+                    app.selectedEl.style.border = 'none';
                 } else {
-                    selectedEl = null;
-                    updateSidebarUI();
+                    const width = w ? w + 'px' : '1px';
+                    app.selectedEl.style.border = `${width} ${s} ${c}`;
                 }
-            };
-        }
-
-        function injectEditorStyles() {
-            if (!doc) return;
-            if (!doc.querySelector('link[href*="font-awesome"]')) {
-                const faLink = doc.createElement('link');
-                faLink.rel = 'stylesheet';
-                faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
-                (doc.head || doc.body).appendChild(faLink);
+                app.saveState();
             }
 
-            if (doc.getElementById('visual-editor-style')) return;
+            // Sync UI with Selected Element
+            syncUI(el) {
+                if (!el) {
+                    // Reset or Disable UI
+                    return;
+                }
 
-            const style = doc.createElement('style');
-            style.id = 'visual-editor-style';
-            style.innerHTML = `
-                .ve-hover:hover { outline: 2px dashed #60a5fa !important; cursor: pointer; opacity: 0.95; }
-                .ve-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; z-index: 9999; box-shadow: 0 0 0 4px rgba(37,99,235,0.2); }
-                a { pointer-events: none; }
-                *:empty:not(img):not(br):not(hr):not(i)::before { content: 'Empty Box'; color: #ccc; font-size: 10px; display: block; background: #f8f8f8; padding: 2px; }
-                i { cursor: pointer; caret-color: transparent; } 
-            `;
-            doc.head.appendChild(style);
-        }
+                const s = window.getComputedStyle(el);
+                const styleRaw = el.style;
 
-        function enableEditing() {
-            const allElements = doc.body.getElementsByTagName('*');
-            const skipTags = ['SCRIPT', 'STYLE', 'LINK', 'META', 'TITLE', 'BR', 'HR'];
+                // 1. Auto-sync inputs based on data-style-prop
+                this.controls.forEach(ctrl => {
+                    const prop = ctrl.dataset.styleProp;
+                    if (!prop) return;
 
-            for (let el of allElements) {
-                if (skipTags.includes(el.tagName)) continue;
+                    let val = styleRaw[prop] || s[prop]; // 우선 인라인 스타일, 없으면 computed
 
-                el.classList.add('ve-hover');
-
-                if (el.tagName !== 'IMG') {
-                    // 아이콘도 클릭 가능하도록 contentEditable은 true로 설정
-                    el.contentEditable = "true";
-
-                    // 아이콘(i 태그)은 텍스트 편집만 방지
-                    if (el.tagName === 'I') {
-                        el.addEventListener('keydown', (e) => e.preventDefault());
-                        el.addEventListener('paste', (e) => e.preventDefault());
-                        el.addEventListener('cut', (e) => e.preventDefault());
-                        el.addEventListener('input', (e) => e.preventDefault());
-                    } else {
-                        // 일반 요소는 변경 감지
-                        el.addEventListener('blur', () => saveState());
-                        el.addEventListener('paste', (e) => {
-                            e.preventDefault();
-                            const text = (e.originalEvent || e).clipboardData.getData('text/plain');
-                            doc.execCommand("insertText", false, text);
-                        });
+                    // Color conversion
+                    if (prop.toLowerCase().includes('color')) {
+                        val = app.rgbToHex(val);
                     }
-                }
+                    // Font Family cleanup
+                    if (prop === 'fontFamily') {
+                        val = app.getFontFamilyValue(val);
+                    }
+                    // Unit removal for number inputs
+                    if (ctrl.type === 'number' || ctrl.type === 'range') {
+                        val = parseFloat(val) || ''; // '16px' -> 16
+                    }
 
-                el.onclick = function (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    selectElement(el);
-                };
-            }
+                    ctrl.value = val;
+                });
 
-            doc.body.onclick = function (e) {
-                if (e.target === doc.body) selectElement(doc.body);
-            }
-        }
+                // 2. Sync Buttons (Active State)
+                document.querySelectorAll('.style-btn').forEach(btn => {
+                    const prop = btn.dataset.styleProp;
+                    const val = btn.dataset.value;
+                    const current = s[prop];
+                    if (current.includes(val) || (prop === 'textAlign' && current === val)) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
 
-        // --- Selection & UI Sync ---
-        function selectElement(el) {
-            if (selectedEl) selectedEl.classList.remove('ve-selected');
-            selectedEl = el;
-            selectedEl.classList.add('ve-selected');
-            updateSidebarUI();
-        }
+                // 3. Sync Toggles
+                document.querySelectorAll('.style-toggle').forEach(btn => {
+                    const prop = btn.dataset.styleProp;
+                    const onVal = btn.dataset.on;
+                    const current = s[prop];
+                    const isActive = String(current).includes(onVal) || (onVal === 'bold' && (current === '700' || current === 'bold'));
 
-        function selectParent() {
-            if (selectedEl && selectedEl.parentElement && selectedEl.parentElement !== doc.documentElement) {
-                selectElement(selectedEl.parentElement);
-            }
-        }
-
-        function deselectAll(e) {
-            if (e.target.id === 'editor-canvas') {
-                if (selectedEl) selectedEl.classList.remove('ve-selected');
-                selectedEl = null;
-                updateSidebarUI();
-            }
-        }
-
-        function updateSidebarUI() {
-            const display = document.getElementById('selected-tag-display');
-            const flexControls = document.getElementById('flex-controls');
-            const imgControls = document.getElementById('img-control-group');
-            const iconPanel = document.getElementById('icon-panel'); // 🟢
-
-            if (!selectedEl) {
-                display.innerText = "none";
-                flexControls.classList.add('hidden');
-                imgControls.style.display = 'none';
-                iconPanel.classList.add('hidden'); // 아이콘 패널 숨김
-                return;
-            }
-
-            // 1. Tag Info
-            let tagName = selectedEl.tagName.toLowerCase();
-            if (selectedEl.id) tagName += `#${selectedEl.id}`;
-            display.innerText = `<${tagName}>`;
-
-            // 🟢 Icon Panel Control
-            if (selectedEl.tagName === 'I') {
-                iconPanel.classList.remove('hidden');
-            } else {
-                iconPanel.classList.add('hidden');
-            }
-
-            // Computed Style
-            const s = window.getComputedStyle(selectedEl);
-            const styleRaw = selectedEl.style;
-
-            // 2. Typography
-            setInputValue('input-font-family', getFontFamilyValue(s.fontFamily));
-            setInputValue('input-color', rgbToHex(s.color));
-            document.getElementById('text-color-val').innerText = rgbToHex(s.color);
-            setInputValue('input-font-size', parseInt(s.fontSize) || '');
-            setInputValue('input-line-height', s.lineHeight === 'normal' ? '' : parseFloat(s.lineHeight));
-
-            updateBtnGroup('textAlign', s.textAlign);
-            updateBtnToggle('fontWeight', s.fontWeight, ['bold', '700']);
-            updateBtnToggle('fontStyle', s.fontStyle, ['italic']);
-            updateBtnToggle('textDecoration', s.textDecorationLine, ['underline']);
-
-            // 3. Layout
-            setInputValue('input-display', s.display);
-            if (s.display === 'flex' || s.display === 'inline-flex') {
-                flexControls.classList.remove('hidden');
-                setInputValue('input-justify', s.justifyContent);
-                setInputValue('input-align', s.alignItems);
-                setInputValue('input-gap', styleRaw.gap || s.gap);
-            } else {
-                flexControls.classList.add('hidden');
-            }
-
-            setInputValue('input-padding', styleRaw.padding || s.padding);
-            setInputValue('input-margin', styleRaw.margin || s.margin);
-            setInputValue('input-width', styleRaw.width || (s.width !== 'auto' ? s.width : ''));
-            setInputValue('input-height', styleRaw.height || (s.height !== 'auto' ? s.height : ''));
-
-            // 4. Decoration
-            let bgCol = s.backgroundColor;
-            if (bgCol === 'rgba(0, 0, 0, 0)' || !bgCol) bgCol = 'transparent';
-            setInputValue('input-bg-color', rgbToHex(bgCol));
-            document.getElementById('bg-color-val').innerText = rgbToHex(bgCol);
-
-            const rad = parseInt(s.borderRadius) || 0;
-            document.getElementById('input-radius').value = rad;
-            document.getElementById('radius-val').innerText = rad + 'px';
-
-            const bw = parseInt(s.borderTopWidth) || 0;
-            setInputValue('input-border-width', bw);
-            setInputValue('input-border-style', s.borderTopStyle === 'none' ? 'none' : s.borderTopStyle);
-            setInputValue('input-border-color', rgbToHex(s.borderTopColor));
-
-            // 5. Advanced & Img
-            if (selectedEl.tagName === 'IMG') {
-                imgControls.style.display = 'block';
-                setInputValue('input-src', selectedEl.getAttribute('src'));
-            } else {
-                imgControls.style.display = 'none';
-            }
-
-            setInputValue('input-classes', selectedEl.className.replace('ve-hover', '').replace('ve-selected', '').trim());
-            setInputValue('input-html', selectedEl.outerHTML);
-        }
-
-        // --- Icon Logic (New) ---
-        function renderIconGrid(filter = '') {
-            const container = document.getElementById('icon-grid-container');
-            container.innerHTML = '';
-
-            const filtered = commonIcons.filter(c => c.includes(filter.toLowerCase()));
-
-            filtered.forEach(iconClass => {
-                const btn = document.createElement('div');
-                btn.className = 'icon-btn';
-                btn.innerHTML = `<i class="${iconClass}"></i>`;
-                btn.onclick = () => applyIcon(iconClass);
-                container.appendChild(btn);
-            });
-        }
-
-        function filterIcons(val) {
-            renderIconGrid(val);
-        }
-
-        function applyIcon(newClass) {
-            if (!selectedEl || selectedEl.tagName !== 'I') return;
-            // ve-hover, ve-selected 등의 내부 클래스는 유지
-            const internalClasses = ['ve-hover', 've-selected'];
-            // 기존 클래스 중 내부 클래스만 남기고 다 제거한 뒤 새 아이콘 클래스 추가
-            selectedEl.className = newClass + ' ' + internalClasses.join(' ');
-
-            // 시각적 피드백
-            updateSidebarUI();
-            saveState();
-        }
-
-
-        // Helpers
-        function setInputValue(id, val) {
-            const el = document.getElementById(id);
-            if (el) el.value = val;
-        }
-
-        function getFontFamilyValue(val) {
-            if (!val) return "";
-            if (val.includes('Jua')) return "'Jua', sans-serif";
-            if (val.includes('Comfortaa')) return "'Comfortaa', cursive";
-            if (val.includes('sans-serif')) return "sans-serif";
-            if (val.includes('serif')) return "serif";
-            if (val.includes('monospace')) return "monospace";
-            return "";
-        }
-
-        function updateBtnGroup(prop, val) {
-            ['left', 'center', 'right', 'justify'].forEach(k => {
-                const btn = document.getElementById(`btn-align-${k}`);
-                if (btn) {
-                    if (val === k) btn.classList.add('active');
+                    if (isActive) btn.classList.add('active');
                     else btn.classList.remove('active');
+                });
+
+                // 4. Update Border UI Manually (Composite property)
+                const bw = parseInt(s.borderTopWidth) || 0;
+                document.getElementById('border-width').value = bw;
+                document.getElementById('border-style').value = s.borderTopStyle === 'none' ? 'none' : s.borderTopStyle;
+                document.getElementById('border-color').value = app.rgbToHex(s.borderTopColor);
+
+                // 5. Visibility Controls
+                const flexControls = document.getElementById('flex-controls');
+                if (s.display === 'flex' || s.display === 'inline-flex') {
+                    flexControls.classList.remove('hidden');
+                } else {
+                    flexControls.classList.add('hidden');
                 }
-            });
-        }
-
-        function updateBtnToggle(prop, val, matches) {
-            let btnId = '';
-            if (prop === 'fontWeight') btnId = 'btn-bold';
-            if (prop === 'fontStyle') btnId = 'btn-italic';
-            if (prop === 'textDecoration') btnId = 'btn-underline';
-
-            const btn = document.getElementById(btnId);
-            if (btn) {
-                const isActive = matches.some(m => String(val).includes(m));
-                if (isActive) btn.classList.add('active');
-                else btn.classList.remove('active');
             }
         }
 
-        function rgbToHex(rgb) {
-            if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return '#ffffff';
-            if (rgb.startsWith('#')) return rgb;
-            const rgbValues = rgb.match(/\d+/g);
-            if (!rgbValues) return '#000000';
-            return "#" + ((1 << 24) + (parseInt(rgbValues[0]) << 16) + (parseInt(rgbValues[1]) << 8) + parseInt(rgbValues[2])).toString(16).slice(1);
-        }
+        // --- Main Application Logic ---
+        const app = {
+            iframe: document.getElementById('content-frame'),
+            doc: null,
+            selectedEl: null,
+            gui: null,
+            historyStack: [],
+            historyIndex: -1,
+            MAX_HISTORY: 40,
 
-        // --- Apply Logic ---
-        function applyStyle(prop, value) {
-            if (!selectedEl) return;
-            selectedEl.style[prop] = value;
-            if (prop === 'backgroundColor') document.getElementById('bg-color-val').innerText = rgbToHex(value);
-            if (prop === 'color') document.getElementById('text-color-val').innerText = rgbToHex(value);
-            if (prop === 'display') updateSidebarUI();
-            saveState();
-        }
+            // Icons
+            commonIcons: [
+                'fa-solid fa-user', 'fa-solid fa-house', 'fa-solid fa-magnifying-glass', 'fa-solid fa-bars', 'fa-solid fa-gear',
+                'fa-solid fa-check', 'fa-solid fa-xmark', 'fa-solid fa-trash', 'fa-solid fa-pen', 'fa-solid fa-image',
+                'fa-solid fa-heart', 'fa-solid fa-star', 'fa-solid fa-thumbs-up', 'fa-solid fa-share', 'fa-solid fa-envelope',
+                'fa-solid fa-arrow-right', 'fa-solid fa-chevron-right', 'fa-solid fa-phone', 'fa-solid fa-location-dot',
+                'fa-brands fa-facebook', 'fa-brands fa-twitter', 'fa-brands fa-instagram', 'fa-brands fa-github', 'fa-brands fa-youtube'
+            ],
 
-        function toggleStyle(prop, valOn, valOff) {
-            if (!selectedEl) return;
-            const current = window.getComputedStyle(selectedEl)[prop];
-            const isSet = String(current).includes(valOn) || (valOn === 'bold' && current === '700');
-            selectedEl.style[prop] = isSet ? valOff : valOn;
-            updateSidebarUI();
-            saveState();
-        }
+            init: function () {
+                // File Upload Listener
+                document.getElementById('file-upload').addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (evt) => this.loadContent(evt.target.result);
+                    reader.readAsText(file);
+                });
 
-        function updateBorder() {
-            if (!selectedEl) return;
-            const w = document.getElementById('input-border-width').value;
-            const s = document.getElementById('input-border-style').value;
-            const c = document.getElementById('input-border-color').value;
+                // Image Changer Listener
+                document.getElementById('img-changer').addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file && this.selectedEl && this.selectedEl.tagName === 'IMG') {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                            this.selectedEl.src = evt.target.result;
+                            this.updateSidebarUI();
+                            this.saveState();
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                    e.target.value = '';
+                });
 
-            if (s === 'none') {
-                selectedEl.style.border = 'none';
-            } else {
-                const width = w ? w + 'px' : '1px';
-                selectedEl.style.border = `${width} ${s} ${c}`;
-            }
-            saveState();
-        }
+                // Initialize GUI Manager
+                this.gui = new GUIManager();
+            },
 
-        function applyAttribute(attr, value) {
-            if (!selectedEl) return;
-            selectedEl.setAttribute(attr, value);
-            saveState();
-        }
+            loadContent: function (html, isHistoryOp = false) {
+                if (!html.includes('font-awesome')) {
+                    const faCDN = '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">';
+                    html = html.replace(/<head>/i, '<head>\n' + faCDN) || faCDN + html;
+                }
 
-        function applyClasses(value) {
-            if (!selectedEl) return;
-            const internalClasses = ['ve-hover', 've-selected'];
-            selectedEl.className = value + ' ' + internalClasses.join(' ');
-            saveState();
-        }
+                this.doc = this.iframe.contentDocument || this.iframe.contentWindow.document;
+                this.doc.open();
+                this.doc.write(html);
+                this.doc.close();
 
-        function toggleHtmlEdit() {
-            const area = document.getElementById('input-html');
-            area.classList.toggle('hidden');
-        }
+                this.iframe.onload = () => {
+                    this.doc = this.iframe.contentDocument || this.iframe.contentWindow.document;
+                    this.injectEditorStyles();
+                    this.enableEditing();
+                    this.renderIconGrid();
 
-        function applyOuterHTML(value) {
-            if (!selectedEl) return;
-            try {
-                const temp = doc.createElement('div');
-                temp.innerHTML = value;
-                const newEl = temp.firstElementChild;
-                if (!newEl) return;
-
-                selectedEl.replaceWith(newEl);
-                selectedEl = newEl;
-                injectEditorStyles();
-                enableEditing();
-
-                selectElement(selectedEl);
-                saveState();
-            } catch (e) {
-                alert("HTML 오류");
-            }
-        }
-
-        // --- Actions ---
-        function deleteSelected() {
-            if (!selectedEl) return;
-            if (confirm('삭제하시겠습니까?')) {
-                selectedEl.remove();
-                selectedEl = null;
-                updateSidebarUI();
-                saveState();
-            }
-        }
-
-        function cloneSelected() {
-            if (!selectedEl) return;
-            const clone = selectedEl.cloneNode(true);
-            clone.classList.remove('ve-selected');
-            selectedEl.insertAdjacentElement('afterend', clone);
-            saveState();
-            enableEditing();
-        }
-
-        document.getElementById('img-changer').addEventListener('change', function (e) {
-            const file = e.target.files[0];
-            if (file && selectedEl && selectedEl.tagName === 'IMG') {
-                const reader = new FileReader();
-                reader.onload = function (evt) {
-                    selectedEl.src = evt.target.result;
-                    updateSidebarUI();
-                    saveState();
+                    if (!isHistoryOp) {
+                        this.selectedEl = null;
+                        this.updateSidebarUI();
+                        setTimeout(() => this.saveState(), 100);
+                    } else {
+                        this.selectedEl = null;
+                        this.updateSidebarUI();
+                    }
                 };
-                reader.readAsDataURL(file);
+            },
+
+            injectEditorStyles: function () {
+                if (!this.doc) return;
+                if (!this.doc.querySelector('link[href*="font-awesome"]')) {
+                    const faLink = this.doc.createElement('link');
+                    faLink.rel = 'stylesheet';
+                    faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
+                    (this.doc.head || this.doc.body).appendChild(faLink);
+                }
+
+                if (this.doc.getElementById('visual-editor-style')) return;
+
+                const style = this.doc.createElement('style');
+                style.id = 'visual-editor-style';
+                style.innerHTML = `
+                    .ve-hover:hover { outline: 2px dashed #60a5fa !important; cursor: pointer; opacity: 0.95; }
+                    .ve-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; z-index: 9999; box-shadow: 0 0 0 4px rgba(37,99,235,0.2); }
+                    a { pointer-events: none; }
+                    *:empty:not(img):not(br):not(hr):not(i)::before { content: 'Empty Box'; color: #ccc; font-size: 10px; display: block; background: #f8f8f8; padding: 2px; }
+                    i { cursor: pointer; caret-color: transparent; } 
+                `;
+                this.doc.head.appendChild(style);
+            },
+
+            enableEditing: function () {
+                const allElements = this.doc.body.getElementsByTagName('*');
+                const skipTags = ['SCRIPT', 'STYLE', 'LINK', 'META', 'TITLE', 'BR', 'HR'];
+
+                for (let el of allElements) {
+                    if (skipTags.includes(el.tagName)) continue;
+                    el.classList.add('ve-hover');
+
+                    if (el.tagName !== 'IMG') {
+                        el.contentEditable = "true";
+                        if (el.tagName === 'I') {
+                            el.addEventListener('keydown', (e) => e.preventDefault());
+                            el.addEventListener('paste', (e) => e.preventDefault());
+                            el.addEventListener('input', (e) => e.preventDefault());
+                        } else {
+                            el.addEventListener('blur', () => this.saveState());
+                            el.addEventListener('paste', (e) => {
+                                e.preventDefault();
+                                const text = (e.originalEvent || e).clipboardData.getData('text/plain');
+                                this.doc.execCommand("insertText", false, text);
+                            });
+                        }
+                    }
+
+                    el.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.selectElement(el);
+                    };
+                }
+
+                this.doc.body.onclick = (e) => {
+                    if (e.target === this.doc.body) this.selectElement(this.doc.body);
+                }
+            },
+
+            selectElement: function (el) {
+                if (this.selectedEl) this.selectedEl.classList.remove('ve-selected');
+                this.selectedEl = el;
+                this.selectedEl.classList.add('ve-selected');
+                this.updateSidebarUI();
+            },
+
+            deselectAll: function (e) {
+                if (e.target.id === 'editor-canvas') {
+                    if (this.selectedEl) this.selectedEl.classList.remove('ve-selected');
+                    this.selectedEl = null;
+                    this.updateSidebarUI();
+                }
+            },
+
+            updateSidebarUI: function () {
+                const display = document.getElementById('selected-tag-display');
+                const imgControls = document.getElementById('img-control-group');
+                const iconPanel = document.getElementById('icon-panel');
+
+                if (!this.selectedEl) {
+                    display.innerText = "none";
+                    imgControls.style.display = 'none';
+                    iconPanel.classList.add('hidden');
+                    // GUI Manager will handle disabling/resetting logic if needed
+                    return;
+                }
+
+                // Tag Info
+                let tagName = this.selectedEl.tagName.toLowerCase();
+                if (this.selectedEl.id) tagName += `#${this.selectedEl.id}`;
+                display.innerText = `<${tagName}>`;
+
+                // Panels
+                if (this.selectedEl.tagName === 'I') iconPanel.classList.remove('hidden');
+                else iconPanel.classList.add('hidden');
+
+                if (this.selectedEl.tagName === 'IMG') {
+                    imgControls.style.display = 'block';
+                    document.getElementById('input-src').value = this.selectedEl.getAttribute('src');
+                } else {
+                    imgControls.style.display = 'none';
+                }
+
+                // Advanced
+                document.getElementById('input-classes').value = this.selectedEl.className.replace('ve-hover', '').replace('ve-selected', '').trim();
+                document.getElementById('input-html').value = this.selectedEl.outerHTML;
+
+                // ★ GUI Manager Sync Call ★
+                this.gui.syncUI(this.selectedEl);
+            },
+
+            // --- History System ---
+            saveState: function () {
+                if (!this.doc) return;
+                const style = this.doc.getElementById('visual-editor-style');
+                if (style) style.remove();
+                const selected = this.doc.querySelector('.ve-selected');
+                if (selected) selected.classList.remove('ve-selected');
+
+                const html = this.doc.documentElement.outerHTML;
+
+                this.injectEditorStyles();
+                if (this.selectedEl && this.doc.contains(this.selectedEl)) {
+                    this.selectedEl.classList.add('ve-selected');
+                }
+
+                if (this.historyIndex < this.historyStack.length - 1) {
+                    this.historyStack = this.historyStack.slice(0, this.historyIndex + 1);
+                }
+                this.historyStack.push(html);
+                this.historyIndex++;
+                if (this.historyStack.length > this.MAX_HISTORY) {
+                    this.historyStack.shift();
+                    this.historyIndex--;
+                }
+            },
+
+            undo: function () {
+                if (this.historyIndex > 0) {
+                    this.historyIndex--;
+                    this.loadContent(this.historyStack[this.historyIndex], true);
+                }
+            },
+
+            redo: function () {
+                if (this.historyIndex < this.historyStack.length - 1) {
+                    this.historyIndex++;
+                    this.loadContent(this.historyStack[this.historyIndex], true);
+                }
+            },
+
+            // --- Style Actions ---
+            applyStyle: function (prop, value) {
+                if (!this.selectedEl) return;
+                this.selectedEl.style[prop] = value;
+                this.saveState();
+            },
+
+            toggleStyle: function (prop, valOn, valOff) {
+                if (!this.selectedEl) return;
+                const current = window.getComputedStyle(this.selectedEl)[prop];
+                const isSet = String(current).includes(valOn) || (valOn === 'bold' && current === '700');
+                this.selectedEl.style[prop] = isSet ? valOff : valOn;
+                this.updateSidebarUI();
+                this.saveState();
+            },
+
+            applyAttribute: function (attr, value) {
+                if (!this.selectedEl) return;
+                this.selectedEl.setAttribute(attr, value);
+                this.saveState();
+            },
+
+            applyClasses: function (value) {
+                if (!this.selectedEl) return;
+                const internalClasses = ['ve-hover', 've-selected'];
+                this.selectedEl.className = value + ' ' + internalClasses.join(' ');
+                this.saveState();
+            },
+
+            // --- Icon Logic ---
+            renderIconGrid: function (filter = '') {
+                const container = document.getElementById('icon-grid-container');
+                container.innerHTML = '';
+                const filtered = this.commonIcons.filter(c => c.includes(filter.toLowerCase()));
+                filtered.forEach(iconClass => {
+                    const btn = document.createElement('div');
+                    btn.className = 'icon-btn';
+                    btn.innerHTML = `<i class="${iconClass}"></i>`;
+                    btn.onclick = () => this.applyIcon(iconClass);
+                    container.appendChild(btn);
+                });
+            },
+
+            applyIcon: function (newClass) {
+                if (!this.selectedEl || this.selectedEl.tagName !== 'I') return;
+                const internalClasses = ['ve-hover', 've-selected'];
+                this.selectedEl.className = newClass + ' ' + internalClasses.join(' ');
+                this.updateSidebarUI();
+                this.saveState();
+            },
+
+            // --- Misc Utils ---
+            selectParent: function () {
+                if (this.selectedEl && this.selectedEl.parentElement && this.selectedEl.parentElement !== this.doc.documentElement) {
+                    this.selectElement(this.selectedEl.parentElement);
+                }
+            },
+
+            deleteSelected: function () {
+                if (!this.selectedEl) return;
+                if (confirm('삭제하시겠습니까?')) {
+                    this.selectedEl.remove();
+                    this.selectedEl = null;
+                    this.updateSidebarUI();
+                    this.saveState();
+                }
+            },
+
+            cloneSelected: function () {
+                if (!this.selectedEl) return;
+                const clone = this.selectedEl.cloneNode(true);
+                clone.classList.remove('ve-selected');
+                this.selectedEl.insertAdjacentElement('afterend', clone);
+                this.saveState();
+                this.enableEditing();
+            },
+
+            toggleHtmlEdit: function () {
+                document.getElementById('input-html').classList.toggle('hidden');
+            },
+
+            applyOuterHTML: function (value) {
+                if (!this.selectedEl) return;
+                try {
+                    const temp = this.doc.createElement('div');
+                    temp.innerHTML = value;
+                    const newEl = temp.firstElementChild;
+                    if (!newEl) return;
+                    this.selectedEl.replaceWith(newEl);
+                    this.selectedEl = newEl;
+                    this.injectEditorStyles();
+                    this.enableEditing();
+                    this.selectElement(this.selectedEl);
+                    this.saveState();
+                } catch (e) { alert("HTML 오류"); }
+            },
+
+            saveHTML: function () {
+                if (!this.doc) return;
+                const style = this.doc.getElementById('visual-editor-style');
+                if (style) style.remove();
+                const selected = this.doc.querySelector('.ve-selected');
+                if (selected) selected.classList.remove('ve-selected');
+                const hovers = this.doc.querySelectorAll('.ve-hover');
+                hovers.forEach(el => el.classList.remove('ve-hover'));
+                const editables = this.doc.querySelectorAll('[contenteditable]');
+                editables.forEach(el => el.removeAttribute('contenteditable'));
+
+                const htmlContent = this.doc.documentElement.outerHTML;
+                const blob = new Blob([htmlContent], { type: "text/html" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "edited_page_v04.html";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                this.injectEditorStyles();
+                this.enableEditing();
+                if (selected) selected.classList.add('ve-selected');
+            },
+
+            setDevice: function (type) {
+                this.iframe.className = type;
+            },
+
+            rgbToHex: function (rgb) {
+                if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return '#ffffff';
+                if (rgb.startsWith('#')) return rgb;
+                const rgbValues = rgb.match(/\d+/g);
+                if (!rgbValues) return '#000000';
+                return "#" + ((1 << 24) + (parseInt(rgbValues[0]) << 16) + (parseInt(rgbValues[1]) << 8) + parseInt(rgbValues[2])).toString(16).slice(1);
+            },
+
+            getFontFamilyValue: function (val) {
+                if (!val) return "";
+                if (val.includes('Jua')) return "'Jua', sans-serif";
+                if (val.includes('Comfortaa')) return "'Comfortaa', cursive";
+                if (val.includes('sans-serif')) return "sans-serif";
+                if (val.includes('serif')) return "serif";
+                if (val.includes('monospace')) return "monospace";
+                return "";
             }
-            this.value = '';
-        });
+        };
 
-        function saveHTML() {
-            if (!doc) return;
-            const style = doc.getElementById('visual-editor-style');
-            if (style) style.remove();
-            const selected = doc.querySelector('.ve-selected');
-            if (selected) selected.classList.remove('ve-selected');
-            const hovers = doc.querySelectorAll('.ve-hover');
-            hovers.forEach(el => el.classList.remove('ve-hover'));
-            const editables = doc.querySelectorAll('[contenteditable]');
-            editables.forEach(el => el.removeAttribute('contenteditable'));
-
-            const htmlContent = doc.documentElement.outerHTML;
-            const blob = new Blob([htmlContent], { type: "text/html" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = "edited_page_v03.html";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            injectEditorStyles();
-            enableEditing();
-            if (selected) selected.classList.add('ve-selected');
-        }
-
-        function setDevice(type) {
-            iframe.className = type;
-        }
-
+        // --- Init ---
         window.onload = function () {
-            // 데모 로드 (Jelly Mix 테마 맛보기)
+            app.init();
+
+            // 데모 로드
             const demoHTML = `
 <!DOCTYPE html>
 <html lang="ko">
@@ -1093,13 +1064,13 @@
 <body>
     <div class="card">
         <i class="fa-solid fa-wand-magic-sparkles icon-demo"></i>
-        <h1>Jelly Editor</h1>
-        <p>왼쪽 [열기] 버튼으로<br><strong>'젤리믹스 기획서.html'</strong>을 불러와<br>수정해보세요!</p>
+        <h1>GUIManager v0.04</h1>
+        <p>이제 코드 구조가<br><strong>이벤트 기반</strong>으로 변경되었습니다.<br>더 쉽고 강력하게 확장하세요!</p>
         <button class="btn">시작하기</button>
     </div>
 </body>
 </html>`;
-            loadContent(demoHTML);
+            app.loadContent(demoHTML);
         }
     </script>
 </body>
