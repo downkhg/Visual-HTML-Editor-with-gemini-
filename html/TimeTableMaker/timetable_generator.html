@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Timetable Generator & Editor (Dual Mode)</title>
+    <title>Timetable Generator (Multi-Edit)</title>
     <style>
-        /* ==================== 1. Editor UI Styles ==================== */
+        /* ==================== UI Styles ==================== */
         :root {
             --bg-color: #1e272e;
             --panel-bg: #2d3436;
@@ -30,9 +30,9 @@
             overflow: hidden;
         }
 
-        /* --- Left Control Panel --- */
+        /* Left Panel */
         aside {
-            width: 340px; /* 패널 너비 약간 확장 */
+            width: 340px;
             background: var(--panel-bg);
             border-right: 1px solid var(--border-color);
             display: flex;
@@ -71,6 +71,13 @@
             border-radius: 4px;
             font-size: 0.85rem;
             margin-bottom: 8px;
+        }
+        /* 비활성화된 인풋 스타일 */
+        input:disabled {
+            background: #2d3436;
+            border-color: #4b4b4b;
+            color: #636e72;
+            cursor: not-allowed;
         }
 
         .btn {
@@ -125,7 +132,7 @@
             display: block;
         }
 
-        /* --- Right Preview Stage --- */
+        /* Right Stage */
         main {
             flex: 1;
             display: flex;
@@ -152,7 +159,6 @@
             background: #636e72;
         }
 
-        /* Scrollable Container */
         .stage-container {
             flex: 1;
             position: relative;
@@ -160,7 +166,6 @@
             overflow: auto;
         }
 
-        /* --- Timetable Grid --- */
         .time-col {
             width: 60px;
             flex-shrink: 0;
@@ -256,15 +261,15 @@
             transition: transform 0.1s;
             line-height: 1.2;
         }
-
+            /* 다중 선택 시 시각적 효과 강화 */
             .class-card.selected {
                 border-color: #ffeaa7;
                 z-index: 1000 !important;
-                box-shadow: 0 0 15px rgba(255, 234, 167, 0.5);
+                box-shadow: 0 0 15px rgba(255, 234, 167, 0.6);
                 transform: scale(1.02);
+                background-image: linear-gradient(rgba(255,255,255,0.1), rgba(255,255,255,0.1));
             }
 
-        /* [NEW] 요일 뱃지 스타일 */
         .day-badge {
             background: rgba(0, 0, 0, 0.25);
             border-radius: 12px;
@@ -275,7 +280,6 @@
             font-weight: 500;
         }
 
-        /* Categories */
         .cat-art-adv {
             background: #d63031;
         }
@@ -314,7 +318,7 @@
         <div class="control-group">
             <label>Mode Setting</label>
             <button class="btn btn-toggle" id="btnToggleMode">Switch to Pixel (px) Mode</button>
-            <p style="font-size:0.75rem; color:#b2bec3;">* Pixel mode allows scrollbars.</p>
+            <p style="font-size:0.75rem; color:#b2bec3;">* Ctrl(Cmd) + Click to Select Multiple</p>
         </div>
 
         <div class="control-group">
@@ -323,10 +327,9 @@
         </div>
 
         <div class="control-group">
-            <label>2. Edit Selected Card</label>
-            <div id="selectedCardInfo" style="margin-bottom:10px; font-size:0.9rem; color:#dfe6e9; min-height:20px;">No card selected</div>
+            <label>2. Inspector <span id="selectionCount" style="float:right; color:#fab1a0; font-size:0.75rem;">0 Selected</span></label>
 
-            <label style="color:#74b9ff; margin-top:10px;">• Layout (<span id="unitLabel">%</span>)</label>
+            <label style="color:#74b9ff; margin-top:10px;">• Layout (<span id="unitLabel">%</span>) <span id="layoutLockMsg" style="font-size:0.7rem; color:#e17055; display:none;">(Locked)</span></label>
             <div class="input-row">
                 <div class="input-wrap"><span class="sm-label">X</span><input type="number" id="inpLeft"></div>
                 <div class="input-wrap"><span class="sm-label">Y</span><input type="number" id="inpTop"></div>
@@ -340,15 +343,15 @@
             <div class="input-row">
                 <div class="input-wrap">
                     <span class="sm-label">Subject</span>
-                    <input type="number" id="inpSubjSize" step="0.05" placeholder="0.9">
+                    <input type="number" id="inpSubjSize" step="0.05" placeholder="-">
                 </div>
                 <div class="input-wrap">
                     <span class="sm-label">Instructor</span>
-                    <input type="number" id="inpInstSize" step="0.05" placeholder="0.8">
+                    <input type="number" id="inpInstSize" step="0.05" placeholder="-">
                 </div>
                 <div class="input-wrap">
                     <span class="sm-label">Day</span>
-                    <input type="number" id="inpDaySize" step="0.05" placeholder="0.75">
+                    <input type="number" id="inpDaySize" step="0.05" placeholder="-">
                 </div>
             </div>
 
@@ -363,7 +366,7 @@
         </div>
     </aside>
 
-    <main>
+    <main id="mainStage">
         <div class="header">
             <h3>Preview Stage</h3>
             <div class="mode-indicator" id="modeIndicator">Mode: Percent (%)</div>
@@ -379,12 +382,6 @@
     </main>
 
     <script>
-        /**
-         * =======================================================
-         * [MODEL] Data & State
-         * =======================================================
-         */
-
         class ClassDTO {
             constructor(data) {
                 this.id = data.id || Date.now();
@@ -403,18 +400,8 @@
                 this.rect = rect;
                 this.core = coreData;
                 this.defaultText = { days: mergedDays };
-
-                this.customText = {
-                    subject: '',
-                    instructor: ''
-                };
-
-                // [NEW] 개별 폰트 스타일 속성 (기본값 설정)
-                this.style = {
-                    subjSize: 0.9,  // 과목명 크기
-                    instSize: 0.8,  // 강사명 크기
-                    daySize: 0.75   // 요일 크기
-                };
+                this.customText = { subject: '', instructor: '' };
+                this.style = { subjSize: 0.9, instSize: 0.8, daySize: 0.75 };
             }
         }
 
@@ -426,7 +413,6 @@
                 this.config = { start: 9, end: 22 };
                 this.mode = 'percent';
                 this.pxSettings = { colWidth: 150, hourHeight: 60 };
-
                 this.onDataLoaded = null;
                 this.onViewUpdated = null;
                 this.onModeChanged = null;
@@ -452,7 +438,6 @@
                 const totalHours = this.config.end - this.config.start;
                 const totalHeightPx = totalHours * this.pxSettings.hourHeight;
                 const totalWidthPx = this.rooms.length * this.pxSettings.colWidth;
-
                 this.viewDTOs.forEach(dto => {
                     if (from === 'percent' && to === 'pixel') {
                         dto.rect.x = (dto.rect.x / 100) * totalWidthPx;
@@ -472,9 +457,7 @@
                 this.viewDTOs = [];
                 const totalH = this.config.end - this.config.start;
                 const colW = 100 / this.rooms.length;
-
                 const grouped = this._groupItems();
-
                 grouped.forEach(group => {
                     const item = group.items[0];
                     const roomIdx = this.rooms.indexOf(item.room);
@@ -485,19 +468,6 @@
                     const days = this._mergeDays(group.items);
                     this.viewDTOs.push(new ViewDTO({ x, y, w, h }, item, days));
                 });
-            }
-
-            updateCardRect(dto, newRect) { /* 생략(컨트롤러에서 직접 제어) */ }
-
-            updateCardText(dto, type, value) {
-                dto.customText[type] = value;
-                if (this.onViewUpdated) this.onViewUpdated();
-            }
-
-            // [NEW] 개별 스타일 업데이트
-            updateCardStyle(dto, type, value) {
-                dto.style[type] = value;
-                if (this.onViewUpdated) this.onViewUpdated();
             }
 
             _groupItems() {
@@ -526,11 +496,6 @@
             }
         }
 
-        /**
-         * =======================================================
-         * [VIEW] Editor UI
-         * =======================================================
-         */
         class EditorView {
             constructor() {
                 this.els = {
@@ -540,6 +505,7 @@
                     cardLayer: document.getElementById('viewCardLayer'),
                     gridCanvas: document.getElementById('gridCanvas'),
 
+                    // Inspector Inputs
                     inpLeft: document.getElementById('inpLeft'),
                     inpTop: document.getElementById('inpTop'),
                     inpWidth: document.getElementById('inpWidth'),
@@ -548,17 +514,16 @@
                     inpSubject: document.getElementById('inpSubject'),
                     inpInstructor: document.getElementById('inpInstructor'),
 
-                    // [NEW] Individual Font Inputs
                     inpSubjSize: document.getElementById('inpSubjSize'),
                     inpInstSize: document.getElementById('inpInstSize'),
                     inpDaySize: document.getElementById('inpDaySize'),
 
-                    info: document.getElementById('selectedCardInfo'),
+                    selectionCount: document.getElementById('selectionCount'),
+                    layoutLockMsg: document.getElementById('layoutLockMsg'),
                     unitLabel: document.getElementById('unitLabel'),
                     modeIndicator: document.getElementById('modeIndicator'),
                     btnToggle: document.getElementById('btnToggleMode')
                 };
-                this.selectedCardEl = null;
             }
 
             updateModeUI(mode) {
@@ -569,6 +534,80 @@
 
                 const inputs = [this.els.inpLeft, this.els.inpTop, this.els.inpWidth, this.els.inpHeight];
                 inputs.forEach(inp => inp.step = isPx ? 1 : 0.1);
+            }
+
+            // 다중 선택에 따른 인스펙터 상태 갱신 (핵심 로직)
+            syncInspector(selectedSet) {
+                const count = selectedSet.size;
+                this.els.selectionCount.textContent = `${count} Selected`;
+
+                // 1. 전체 초기화 (비활성화)
+                const allInputs = [
+                    this.els.inpLeft, this.els.inpTop, this.els.inpWidth, this.els.inpHeight,
+                    this.els.inpSubject, this.els.inpInstructor,
+                    this.els.inpSubjSize, this.els.inpInstSize, this.els.inpDaySize
+                ];
+
+                if (count === 0) {
+                    allInputs.forEach(el => { el.value = ''; el.disabled = true; el.placeholder = '-'; });
+                    this.els.layoutLockMsg.style.display = 'none';
+                    return;
+                }
+
+                allInputs.forEach(el => el.disabled = false); // 일단 모두 활성화
+
+                const list = Array.from(selectedSet);
+
+                // 2. Layout Handling (다중 선택 시 Layout 잠금)
+                const layoutInputs = [this.els.inpLeft, this.els.inpTop, this.els.inpWidth, this.els.inpHeight];
+                if (count > 1) {
+                    // X, Y, H는 비활성화 (잠금)
+                    layoutInputs.forEach(el => {
+                        el.value = '';
+                        el.disabled = true;
+                        el.placeholder = 'Locked';
+                    });
+                    this.els.layoutLockMsg.style.display = 'inline';
+                    this.els.layoutLockMsg.textContent = '(Pos/H Locked)'; // 메시지 변경
+
+                    // [핵심] Width는 활성화하고 Mixed Value 처리
+                    this.els.inpWidth.disabled = false;
+                    this._bindMixedInput(this.els.inpWidth, list, d => parseFloat(d.rect.w.toFixed(2)));
+
+                } else {
+                    // 단일 선택: 기존과 동일하게 모든 좌표 바인딩
+                    const dto = list[0];
+                    this.els.inpLeft.value = parseFloat(dto.rect.x.toFixed(2));
+                    this.els.inpTop.value = parseFloat(dto.rect.y.toFixed(2));
+                    this.els.inpWidth.value = parseFloat(dto.rect.w.toFixed(2));
+                    this.els.inpHeight.value = parseFloat(dto.rect.h.toFixed(2));
+
+                    // 비활성화 해제
+                    [this.els.inpLeft, this.els.inpTop, this.els.inpHeight, this.els.inpWidth].forEach(el => el.disabled = false);
+                    this.els.layoutLockMsg.style.display = 'none';
+                }
+
+                // 3. Style & Text Handling (Mixed Value 체크)
+                this._bindMixedInput(this.els.inpSubjSize, list, d => d.style.subjSize);
+                this._bindMixedInput(this.els.inpInstSize, list, d => d.style.instSize);
+                this._bindMixedInput(this.els.inpDaySize, list, d => d.style.daySize);
+
+                this._bindMixedInput(this.els.inpSubject, list, d => d.customText.subject || '', d => d.core.subject);
+                this._bindMixedInput(this.els.inpInstructor, list, d => d.customText.instructor || '', d => d.core.instructor);
+            }
+
+            // 값이 모두 같으면 표시, 다르면 "Mixed" 처리
+            _bindMixedInput(el, list, valueGetter, placeholderGetter = null) {
+                const firstVal = valueGetter(list[0]);
+                const isAllSame = list.every(d => valueGetter(d) === firstVal);
+
+                if (isAllSame) {
+                    el.value = firstVal;
+                    if (placeholderGetter) el.placeholder = placeholderGetter(list[0]);
+                } else {
+                    el.value = '';
+                    el.placeholder = 'Mixed Values';
+                }
             }
 
             renderStage(model) {
@@ -588,49 +627,30 @@
                 const totalH = config.end - config.start;
 
                 for (let h = config.start; h <= config.end; h++) {
-                    let posVal = isPx
-                        ? (h - config.start) * model.pxSettings.hourHeight + "px"
-                        : ((h - config.start) / totalH) * 100 + "%";
-
-                    const lbl = document.createElement('div');
-                    lbl.className = 'time-label';
-                    lbl.textContent = `${h}:00`;
-                    lbl.style.top = posVal;
-                    this.els.timeCol.appendChild(lbl);
-
+                    let posVal = isPx ? (h - config.start) * model.pxSettings.hourHeight + "px" : ((h - config.start) / totalH) * 100 + "%";
+                    const lbl = document.createElement('div'); lbl.className = 'time-label'; lbl.textContent = `${h}:00`; lbl.style.top = posVal; this.els.timeCol.appendChild(lbl);
                     if (h !== config.end) {
-                        const line = document.createElement('div');
-                        line.className = 'h-line';
-                        line.style.top = posVal;
-                        this.els.gridLines.appendChild(line);
+                        const line = document.createElement('div'); line.className = 'h-line'; line.style.top = posVal; this.els.gridLines.appendChild(line);
                     }
                 }
-
                 rooms.forEach((room, i) => {
-                    const hd = document.createElement('div');
-                    hd.className = 'room-header';
-                    hd.textContent = room;
-                    this.els.headers.appendChild(hd);
-
+                    const hd = document.createElement('div'); hd.className = 'room-header'; hd.textContent = room; this.els.headers.appendChild(hd);
                     if (i > 0) {
-                        const vl = document.createElement('div');
-                        vl.className = 'v-line';
-                        let leftVal = isPx
-                            ? i * model.pxSettings.colWidth + "px"
-                            : (i / rooms.length) * 100 + "%";
-                        vl.style.left = leftVal;
-                        this.els.gridLines.appendChild(vl);
+                        const vl = document.createElement('div'); vl.className = 'v-line';
+                        let leftVal = isPx ? i * model.pxSettings.colWidth + "px" : (i / rooms.length) * 100 + "%";
+                        vl.style.left = leftVal; this.els.gridLines.appendChild(vl);
                     }
                 });
             }
 
-            renderCards(model, onCardClick) {
+            renderCards(model, selectedSet, onCardClick) {
                 this.els.cardLayer.innerHTML = '';
                 const unit = model.mode === 'pixel' ? 'px' : '%';
 
                 model.viewDTOs.forEach(dto => {
                     const el = document.createElement('div');
                     el.className = `class-card cat-${dto.core.category}`;
+                    if (selectedSet.has(dto)) el.classList.add('selected');
 
                     el.style.left = dto.rect.x + unit;
                     el.style.top = dto.rect.y + unit;
@@ -641,7 +661,6 @@
                     const instructor = dto.customText.instructor || dto.core.instructor;
                     const days = dto.defaultText.days;
 
-                    // [NEW] 개별 폰트 사이즈 및 뱃지 스타일 적용
                     el.innerHTML = `
                             <div style="font-weight:800; font-size:${dto.style.subjSize}rem; margin-bottom:2px; word-break:keep-all;">${subject}</div>
                             <div style="opacity:0.9; font-size:${dto.style.instSize}rem;">${instructor}</div>
@@ -650,52 +669,31 @@
 
                     el.onclick = (e) => {
                         e.stopPropagation();
-                        this._selectCard(el, dto);
-                        onCardClick(dto);
+                        onCardClick(dto, e);
                     };
-
                     this.els.cardLayer.appendChild(el);
                 });
             }
-
-            _selectCard(el, dto) {
-                if (this.selectedCardEl) this.selectedCardEl.classList.remove('selected');
-                el.classList.add('selected');
-                this.selectedCardEl = el;
-
-                this.els.info.innerHTML = `Selected: <b style="color:white;">${dto.core.subject}</b>`;
-
-                this.els.inpLeft.value = parseFloat(dto.rect.x.toFixed(2));
-                this.els.inpTop.value = parseFloat(dto.rect.y.toFixed(2));
-                this.els.inpWidth.value = parseFloat(dto.rect.w.toFixed(2));
-                this.els.inpHeight.value = parseFloat(dto.rect.h.toFixed(2));
-
-                // [NEW] 3개의 폰트 사이즈 바인딩
-                this.els.inpSubjSize.value = dto.style.subjSize;
-                this.els.inpInstSize.value = dto.style.instSize;
-                this.els.inpDaySize.value = dto.style.daySize;
-
-                this.els.inpSubject.value = dto.customText.subject || '';
-                this.els.inpSubject.placeholder = dto.core.subject;
-                this.els.inpInstructor.value = dto.customText.instructor || '';
-                this.els.inpInstructor.placeholder = dto.core.instructor;
-            }
         }
 
-        /**
-         * =======================================================
-         * [CONTROLLER] Logic
-         * =======================================================
-         */
         class Controller {
             constructor(model, view) {
                 this.model = model;
                 this.view = view;
-                this.currentSelectedDTO = null;
+                this.selectedDTOs = new Set(); // 다중 선택 저장소
                 this._initEvents();
             }
 
             _initEvents() {
+                // 0. Stage Click (Background) -> Clear Selection
+                document.getElementById('mainStage').addEventListener('click', (e) => {
+                    // 카드나 컨트롤 패널 클릭이 아닐 때만 해제
+                    if (!e.target.closest('.class-card') && !e.target.closest('aside')) {
+                        this.selectedDTOs.clear();
+                        this._refreshSelection();
+                    }
+                });
+
                 // 1. Data Load
                 document.getElementById('jsonFileInput').addEventListener('change', (e) => {
                     const file = e.target.files[0];
@@ -707,6 +705,7 @@
                             if (content.includes('=')) content = content.split('=')[1];
                             if (content.trim().endsWith(';')) content = content.trim().slice(0, -1);
                             this.model.loadData(JSON.parse(content));
+                            this.selectedDTOs.clear();
                         } catch (err) { alert("Parsing Error"); }
                     };
                     reader.readAsText(file);
@@ -715,78 +714,84 @@
                 // 2. Mode Toggle
                 document.getElementById('btnToggleMode').addEventListener('click', () => {
                     this.model.toggleMode();
+                    this._refreshSelection(); // 모드 변경 시에도 Inspector 값 유지 확인
                 });
 
-                // 3. Model Listeners
                 this.model.onDataLoaded = () => this._refreshAll();
                 this.model.onModeChanged = (mode) => {
                     this.view.updateModeUI(mode);
                     this._refreshAll();
                 };
                 this.model.onViewUpdated = () => {
-                    this.view.renderCards(this.model, (dto) => {
-                        this.currentSelectedDTO = dto;
-                    });
+                    this.view.renderCards(this.model, this.selectedDTOs, (dto, e) => this._handleCardClick(dto, e));
                 };
 
-                // 4. Input Bindings (Coordinates)
+                // 3. Layout Inputs (단일 선택일 때만 작동, 다중일 땐 Disabled라 이벤트 안옴)
                 ['inpLeft', 'inpTop', 'inpWidth', 'inpHeight'].forEach(id => {
                     document.getElementById(id).addEventListener('input', (e) => {
-                        if (!this.currentSelectedDTO) return;
+                        // [핵심 변경] Width가 아니면서 다중 선택인 경우만 차단 (즉, Width는 다중 선택 허용)
+                        if (id !== 'inpWidth' && this.selectedDTOs.size > 1) return;
+
                         const val = parseFloat(e.target.value);
                         if (isNaN(val)) return;
 
-                        const rect = { ...this.currentSelectedDTO.rect };
-                        if (id === 'inpLeft') rect.x = val;
-                        if (id === 'inpTop') rect.y = val;
-                        if (id === 'inpWidth') rect.w = val;
-                        if (id === 'inpHeight') rect.h = val;
+                        // 선택된 모든 DTO에 대해 루프를 돌며 적용 (단일 선택이면 1개, 다중이면 N개)
+                        this.selectedDTOs.forEach(dto => {
+                            const rect = { ...dto.rect };
+                            if (id === 'inpLeft') rect.x = val;
+                            if (id === 'inpTop') rect.y = val;
+                            if (id === 'inpWidth') rect.w = val; // 여기서 일괄 적용됨
+                            if (id === 'inpHeight') rect.h = val;
+                            dto.rect = rect;
+                        });
 
-                        // UI Update
-                        if (this.view.selectedCardEl) {
-                            const unit = this.model.mode === 'pixel' ? 'px' : '%';
-                            if (id === 'inpLeft') this.view.selectedCardEl.style.left = val + unit;
-                            if (id === 'inpTop') this.view.selectedCardEl.style.top = val + unit;
-                            if (id === 'inpWidth') this.view.selectedCardEl.style.width = val + unit;
-                            if (id === 'inpHeight') this.view.selectedCardEl.style.height = val + unit;
-                        }
-                        this.currentSelectedDTO.rect = rect;
+                        // 화면 갱신
+                        this.model.onViewUpdated();
                     });
                 });
 
-                // 5. Input Bindings (Text)
-                document.getElementById('inpSubject').addEventListener('input', (e) => {
-                    if (!this.currentSelectedDTO) return;
-                    this.model.updateCardText(this.currentSelectedDTO, 'subject', e.target.value);
-                });
-                document.getElementById('inpInstructor').addEventListener('input', (e) => {
-                    if (!this.currentSelectedDTO) return;
-                    this.model.updateCardText(this.currentSelectedDTO, 'instructor', e.target.value);
-                });
-
-                // [NEW] Input Bindings (Individual Font Sizes)
-                // Helper function to bind font inputs
-                const bindFontInput = (id, type) => {
+                // 4. Batch Edit Inputs (Text & Font)
+                const bindBatchInput = (id, applyFn) => {
                     document.getElementById(id).addEventListener('input', (e) => {
-                        if (!this.currentSelectedDTO) return;
-                        const val = parseFloat(e.target.value);
-                        if (isNaN(val) || val <= 0) return;
-
-                        this.model.updateCardStyle(this.currentSelectedDTO, type, val);
+                        if (this.selectedDTOs.size === 0) return;
+                        const val = e.target.value;
+                        // 선택된 모든 항목 업데이트
+                        this.selectedDTOs.forEach(dto => applyFn(dto, val));
+                        this.model.onViewUpdated(); // 전체 갱신
                     });
                 };
 
-                bindFontInput('inpSubjSize', 'subjSize');
-                bindFontInput('inpInstSize', 'instSize');
-                bindFontInput('inpDaySize', 'daySize');
+                bindBatchInput('inpSubject', (dto, val) => dto.customText.subject = val);
+                bindBatchInput('inpInstructor', (dto, val) => dto.customText.instructor = val);
 
-                // 6. Download
+                bindBatchInput('inpSubjSize', (dto, val) => dto.style.subjSize = parseFloat(val));
+                bindBatchInput('inpInstSize', (dto, val) => dto.style.instSize = parseFloat(val));
+                bindBatchInput('inpDaySize', (dto, val) => dto.style.daySize = parseFloat(val));
+
+                // 5. Download
                 document.getElementById('btnDownload').addEventListener('click', () => this._downloadHTML());
+            }
+
+            _handleCardClick(dto, e) {
+                // Ctrl or Meta(Mac) Key Logic
+                if (e.ctrlKey || e.metaKey) {
+                    if (this.selectedDTOs.has(dto)) this.selectedDTOs.delete(dto);
+                    else this.selectedDTOs.add(dto);
+                } else {
+                    this.selectedDTOs.clear();
+                    this.selectedDTOs.add(dto);
+                }
+                this._refreshSelection();
             }
 
             _refreshAll() {
                 this.view.renderStage(this.model);
-                this.view.renderCards(this.model, (dto) => this.currentSelectedDTO = dto);
+                this._refreshSelection();
+            }
+
+            _refreshSelection() {
+                this.view.renderCards(this.model, this.selectedDTOs, (dto, e) => this._handleCardClick(dto, e));
+                this.view.syncInspector(this.selectedDTOs);
             }
 
             _downloadHTML() {
@@ -795,7 +800,6 @@
                 const roomsData = JSON.stringify(this.model.rooms);
                 const mode = this.model.mode;
                 const htmlContent = this._generateHTMLTemplate(exportData, roomsData, mode);
-
                 const blob = new Blob([htmlContent], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -807,13 +811,11 @@
             }
 
             _generateHTMLTemplate(dataJson, roomsJson, mode) {
+                // ... (이전 코드와 동일, 다운로드 로직은 변경 없음)
                 const isPx = mode === 'pixel';
                 const unit = isPx ? 'px' : '%';
                 const containerStyle = isPx ? 'overflow: auto;' : 'overflow: hidden;';
-                const canvasStyle = isPx
-                    ? `width: ${this.model.getCanvasDimensions().w}; height: ${this.model.getCanvasDimensions().h};`
-                    : 'width: 100%; height: 100%;';
-
+                const canvasStyle = isPx ? `width: ${this.model.getCanvasDimensions().w}; height: ${this.model.getCanvasDimensions().h};` : 'width: 100%; height: 100%;';
                 return `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -825,104 +827,48 @@
                 body { background-color: #1e272e; color: #f5f6fa; width: 100vw; height: 100vh; display: flex; flex-direction: column; }
                 .header { height: 60px; display: flex; align-items: center; justify-content: center; background: #2d3436; flex-shrink: 0; }
                 .header h1 { font-size: 1.5rem; color: #74b9ff; }
-
                 .stage-wrap { flex: 1; position: relative; display: flex; ${containerStyle} }
                 .time-col { width: 60px; background: #222f3e; border-right: 1px solid rgba(255,255,255,0.1); position: sticky; left: 0; z-index: 50; flex-shrink: 0; }
-
                 .grid-canvas { position: relative; ${canvasStyle} }
-
                 .time-label { position: absolute; right: 5px; font-size: 0.75rem; color: #b2bec3; transform: translateY(-50%); }
                 .room-headers { display: flex; height: 40px; border-bottom: 1px solid rgba(255,255,255,0.1); position: absolute; top: 0; width: 100%; background: #2d3436; z-index: 40; }
                 .room-header { flex: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.1); font-weight: bold; font-size: 0.9rem; }
                 .grid-lines { position: absolute; top: 40px; bottom: 0; left: 0; right: 0; pointer-events: none; }
                 .h-line { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(255,255,255,0.05); }
                 .v-line { position: absolute; top: 0; bottom: 0; border-right: 1px solid rgba(255,255,255,0.05); }
-
-                .class-card {
-                    position: absolute; border-radius: 6px; padding: 6px;
-                    display: flex; flex-direction: column; align-items: center; justify-content: center;
-                    text-align: center; color: white;
-                    box-shadow: 0 4px 6px rgba(0,0,0,0.3); overflow: hidden;
-                    transition: transform 0.2s; cursor: pointer; line-height: 1.2;
-                }
+                .class-card { position: absolute; border-radius: 6px; padding: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.3); overflow: hidden; transition: transform 0.2s; cursor: pointer; line-height: 1.2; }
                 .class-card:hover { transform: scale(1.05); z-index: 100; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
-
-                /* Badge Style */
-                .day-badge {
-                    background: rgba(0, 0, 0, 0.25);
-                    border-radius: 12px;
-                    padding: 2px 8px;
-                    margin-top: 4px;
-                    display: inline-block;
-                    white-space: nowrap;
-                    font-weight: 500;
-                }
-
-                .cat-art-adv { background: #d63031; } .cat-prog-adv { background: #0984e3; }
-                .cat-plan-adv { background: #f1c40f; color: #2d3436; } .cat-graphic { background: #6c5ce7; }
-                .cat-webtoon { background: #e17055; } .cat-kdigital { background: #d35400; }
-                .cat-default { background: #636e72; }
+                .day-badge { background: rgba(0, 0, 0, 0.25); border-radius: 12px; padding: 2px 8px; margin-top: 4px; display: inline-block; white-space: nowrap; font-weight: 500; }
+                .cat-art-adv { background: #d63031; } .cat-prog-adv { background: #0984e3; } .cat-plan-adv { background: #f1c40f; color: #2d3436; } .cat-graphic { background: #6c5ce7; } .cat-webtoon { background: #e17055; } .cat-kdigital { background: #d35400; } .cat-default { background: #636e72; }
             </style>
 </head>
 <body>
             <div class="header"><h1>ACADEMY TIMETABLE</h1></div>
             <div class="stage-wrap">
                 <div class="time-col" id="tCol"></div>
-                <div class="grid-canvas">
-                    <div class="room-headers" id="rHead"></div>
-                    <div class="grid-lines" id="gLine"></div>
-                    <div id="cLayer"></div>
-                </div>
+                <div class="grid-canvas"><div class="room-headers" id="rHead"></div><div class="grid-lines" id="gLine"></div><div id="cLayer"></div></div>
             </div>
             <script>
-                const DATA = ${dataJson};
-                const ROOMS = ${roomsJson};
-                const CONFIG = { start: 9, end: 22 };
-                const UNIT = '${unit}';
-                const IS_PX = ${isPx};
-                const PX_SET = { colW: 150, hourH: 60 };
-
+                const DATA = ${dataJson}; const ROOMS = ${roomsJson}; const CONFIG = { start: 9, end: 22 }; const UNIT = '${unit}'; const IS_PX = ${isPx}; const PX_SET = { colW: 150, hourH: 60 };
                 document.addEventListener('DOMContentLoaded', () => {
-                    const tCol = document.getElementById('tCol');
-                    const rHead = document.getElementById('rHead');
-                    const gLine = document.getElementById('gLine');
-                    const cLayer = document.getElementById('cLayer');
-                    const totalH = CONFIG.end - CONFIG.start;
-
+                    const tCol = document.getElementById('tCol'); const rHead = document.getElementById('rHead'); const gLine = document.getElementById('gLine'); const cLayer = document.getElementById('cLayer'); const totalH = CONFIG.end - CONFIG.start;
                     for(let h=CONFIG.start; h<=CONFIG.end; h++) {
-                        let pos = IS_PX
-                            ? (h - CONFIG.start) * PX_SET.hourH + 'px'
-                            : ((h - CONFIG.start) / totalH) * 100 + '%';
+                        let pos = IS_PX ? (h - CONFIG.start) * PX_SET.hourH + 'px' : ((h - CONFIG.start) / totalH) * 100 + '%';
                         const l = document.createElement('div'); l.className='time-label'; l.innerText = h+":00"; l.style.top=pos; tCol.appendChild(l);
-                        if(h !== CONFIG.end){
-                            const hl = document.createElement('div'); hl.className='h-line'; hl.style.top=pos; gLine.appendChild(hl);
-                        }
+                        if(h !== CONFIG.end){ const hl = document.createElement('div'); hl.className='h-line'; hl.style.top=pos; gLine.appendChild(hl); }
                     }
                     ROOMS.forEach((r, i) => {
                         const rh = document.createElement('div'); rh.className='room-header'; rh.innerText=r; rHead.appendChild(rh);
-                        if(i>0) {
-                            const vl = document.createElement('div'); vl.className='v-line';
-                            let left = IS_PX ? i * PX_SET.colW + 'px' : (i/ROOMS.length)*100 + '%';
-                            vl.style.left=left; gLine.appendChild(vl);
-                        }
+                        if(i>0) { const vl = document.createElement('div'); vl.className='v-line'; let left = IS_PX ? i * PX_SET.colW + 'px' : (i/ROOMS.length)*100 + '%'; vl.style.left=left; gLine.appendChild(vl); }
                     });
-
                     DATA.forEach(dto => {
-                        const el = document.createElement('div');
-                        el.className = 'class-card cat-' + dto.core.category;
-                        el.style.left = dto.rect.x + UNIT;
-                        el.style.top = dto.rect.y + UNIT;
-                        el.style.width = dto.rect.w + UNIT;
-                        el.style.height = dto.rect.h + UNIT;
-
+                        const el = document.createElement('div'); el.className = 'class-card cat-' + dto.core.category;
+                        el.style.left = dto.rect.x + UNIT; el.style.top = dto.rect.y + UNIT; el.style.width = dto.rect.w + UNIT; el.style.height = dto.rect.h + UNIT;
                         const subject = dto.customText.subject || dto.core.subject;
                         const instructor = dto.customText.instructor || dto.core.instructor;
-                        const days = dto.defaultText.days;
-
-                        // [Export] 개별 폰트 스타일 및 뱃지 적용
                         el.innerHTML = "<div style='font-weight:800; margin-bottom:2px; word-break:keep-all; font-size:" + dto.style.subjSize + "rem'>" + subject + "</div>" +
                                        "<div style='opacity:0.9; font-size:" + dto.style.instSize + "rem'>" + instructor + "</div>" +
-                                       "<div class='day-badge' style='font-size:" + dto.style.daySize + "rem'>" + days + "</div>";
+                                       "<div class='day-badge' style='font-size:" + dto.style.daySize + "rem'>" + dto.defaultText.days + "</div>";
                         cLayer.appendChild(el);
                     });
                 });
@@ -935,7 +881,6 @@
         const appModel = new AppModel();
         const appView = new EditorView();
         const appController = new Controller(appModel, appView);
-
     </script>
 </body>
 </html>
