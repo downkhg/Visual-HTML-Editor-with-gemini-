@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Timetable Editor (Drag Select)</title>
+    <title>Timetable Editor (Final Fixed)</title>
     <style>
         /* ==================== CORE UI Styles ==================== */
         :root {
@@ -19,7 +19,7 @@
             margin: 0;
             padding: 0;
             font-family: 'Pretendard', sans-serif;
-            user-select: none; /* 드래그 시 텍스트 선택 방지 */
+            user-select: none;
         }
 
         body {
@@ -116,6 +116,17 @@
                 background: #ff7675;
             }
 
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #74b9ff;
+            color: #74b9ff;
+            margin-bottom: 5px;
+        }
+
+            .btn-outline:hover {
+                background: rgba(116, 185, 255, 0.1);
+            }
+
         .input-row {
             display: flex;
             gap: 10px;
@@ -142,14 +153,47 @@
             overflow: hidden;
         }
 
+        /* Header & Legend */
         .header {
-            height: 50px;
+            height: 60px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 20px;
             border-bottom: 1px solid var(--border-color);
             flex-shrink: 0;
+            background: #222f3e;
+        }
+
+        .header-left {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #dfe6e9;
+        }
+
+        .legend-bar {
+            display: flex;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.7rem;
+            color: #b2bec3;
+        }
+
+        .color-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
         }
 
         .mode-indicator {
@@ -246,17 +290,17 @@
             z-index: 60;
         }
 
-        /* Selection Box (Drag Area) */
+        /* Selection Box */
         .selection-box {
             position: absolute;
             background: rgba(9, 132, 227, 0.2);
             border: 1px solid #74b9ff;
             display: none;
             z-index: 9999;
-            pointer-events: none; /* 중요: 마우스 이벤트가 아래 캔버스로 통과되도록 함 */
+            pointer-events: none;
         }
 
-        /* ==================== CARD STYLING (Default Theme Integrated) ==================== */
+        /* ==================== CARD STYLING ==================== */
         .class-card {
             position: absolute;
             cursor: pointer;
@@ -265,10 +309,10 @@
             flex-direction: column;
             align-items: flex-start;
             justify-content: space-between;
-            padding: 10px;
-            border-radius: 12px;
+            padding: 8px 10px;
+            border-radius: 8px;
             color: white;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
             border: 1px solid rgba(255,255,255,0.1);
             transition: transform 0.2s;
         }
@@ -288,122 +332,92 @@
             background: rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(4px);
             border: 1px solid rgba(255, 255, 255, 0.5);
-            border-radius: 20px;
-            padding: 4px 12px;
+            border-radius: 12px;
+            padding: 2px 10px;
             font-weight: 700;
-            margin-bottom: 6px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             align-self: flex-start;
         }
 
         .day-badge {
             background: transparent;
-            border: 1px solid rgba(255,255,255,0.3);
-            border-radius: 6px;
-            padding: 2px 6px;
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 4px;
+            padding: 1px 5px;
             opacity: 0.9;
         }
 
-        /* ==================== 🎨 CATEGORY & DIFFICULTY THEME ==================== */
-        /* [색상 규칙]
-        - 프로그래밍 (Blue): 논리, 구조
-        - 기획 (Yellow): 아이디어, 구성
-        - 아트 (Red): 시각, 표현
-    
-        [혼합 규칙]
-        - 웹툰 (Art + Plan): Red + Yellow = Orange (Art 우세)
-        - 웹소설 (Plan + Art): Yellow + Red = Amber/Gold (Plan 우세)
-        - 그래픽 (Art + Prog): Red + Blue = Purple
-    
-        [난이도별 명도 규칙]
-        - 기초 (Basic): 명도 높음 (파스텔톤, 밝음) -> 글자색 어두움(#2d3436)
-        - 심화 (Adv): 명도 낮음 (비비드/딥톤, 어두움) -> 글자색 밝음(#ffffff)
-        */
+        /* ==================== COLOR THEMES ==================== */
 
-        /* 1. Programming (Blue 계열) */
-        /* 기초: C#, 기초 문법 등 */
+        /* 1. Programming (Blue) */
         .cat-programming {
-            background: #74b9ff; /* Light Blue (밝은 파랑) */
+            background: #74b9ff;
             color: #2d3436;
         }
-        /* 심화: 클라이언트, 엔진 심화, 포트폴리오 */
+
         .cat-prog-adv {
-            background: #0984e3; /* Vivid Blue (깊은 파랑) */
+            background: #0984e3;
             color: #ffffff;
         }
 
-        /* 2. Planning (Yellow 계열) */
-        /* 기초 (가정): 기획 개론 등 (현재 데이터 없음, 예비용) */
+        /* 2. Planning (Yellow) */
         .cat-plan-basic {
-            background: #ffeaa7; /* Pale Yellow (연한 노랑) */
+            background: #ffeaa7;
             color: #2d3436;
         }
-        /* 심화: 시스템 기획, 역기획 */
+
         .cat-plan-adv {
-            background: #f39c12; /* Orange Yellow (진한 개나리색 - 가독성 위해 약간 어둡게 조정) */
-            color: #ffffff; /* 배경이 진해졌으므로 글자는 흰색 추천, 원복 원하시면 #2d3436 */
+            background: #f39c12;
+            color: #ffffff;
         }
 
-        /* 3. Art (Red 계열) */
-        /* 기초: 드로잉 기초, 인체 해부학 */
+        /* 3. Art (Red) */
         .cat-art-basic {
-            background: #ff7675; /* Soft Red/Pink (연한 빨강) */
+            background: #ff7675;
             color: #2d3436;
         }
-        /* 심화: 컨셉 아트, 일러스트 */
+
         .cat-art-adv {
-            background: #d63031; /* Strong Red (강렬한 빨강) */
+            background: #d63031;
             color: #ffffff;
         }
-        /* UI/이모티콘: 아트의 서브 카테고리 (가볍고 밝은 느낌) */
+
         .cat-ui, .cat-emo {
-            background: #fab1a0; /* Peach (복숭아색 - 아트 기초와 유사하거나 더 밝음) */
+            background: #fab1a0;
             color: #2d3436;
         }
 
-        /* 4. Mixed Categories (혼합 계열) */
-
-        /* [Graphic] 아트(Red) + 프로그래밍(Blue) = Purple */
-        /* 기술적 아트(TA), 쉐이더, 3D 툴 등 */
+        /* 4. Mixed (Purple/Orange/Amber) */
         .cat-graphic {
-            background: #6c5ce7; /* Vivid Purple (보라색 - 요청하신 규칙 적용) */
+            background: #6c5ce7;
             color: #ffffff;
         }
 
-        /* [Webtoon] 아트(Red) + 기획(Yellow) = Orange */
-        /* 작화 위주, 연출 */
         .cat-webtoon {
-            background: #e17055; /* Burnt Orange (진한 주황 - 아트의 붉은기 강함) */
+            background: #e17055;
             color: #ffffff;
         }
 
-        /* [Web Novel] 기획(Yellow) + 아트(Red) = Amber */
-        /* 스토리 위주, 묘사 */
         .cat-novel {
-            background: #fdcb6e; /* Mustard/Amber (머스타드색 - 기획의 노란기 강함) */
+            background: #fdcb6e;
             color: #2d3436;
         }
 
-        /* 5. Special / High Difficulty */
-
-        /* [Portfolio] 종합 과정 (모든 역량의 집합) */
-        /* 가장 높은 채도의 보라색 사용 */
+        /* 5. Special */
         .cat-port {
-            background: #8e44ad; /* Deep Violet (진한 보라) */
+            background: #8e44ad;
             color: #ffffff;
         }
 
-        /* [K-Digital/Expert] 국비/전문가 과정 */
-        /* 난이도 최상 -> 명도 최하 (가장 무거운 색) */
         .cat-kdigital {
-            background: #b71540; /* Dark Crimson (검붉은색) */
+            background: #b71540;
             color: #ffffff;
-            border: 2px solid #ffcccc; /* 국비 과정 강조를 위한 테두리 */
+            border: 2px solid #ffcccc;
         }
 
-        /* [Default] 분류 없음 */
         .cat-default {
-            background: #636e72; /* Grey */
+            background: #636e72;
             color: #ffffff;
         }
     </style>
@@ -427,6 +441,8 @@
         <div class="control-group">
             <label>2. Inspector <span id="selectionCount" style="float:right; color:#fab1a0; font-size:0.75rem;">0 Selected</span></label>
 
+            <button class="btn btn-outline" id="btnSelectAll">Select All Cards (Batch Edit)</button>
+
             <label style="color:#74b9ff; margin-top:10px;">• Layout (<span id="unitLabel">%</span>) <span id="layoutLockMsg" style="font-size:0.7rem; color:#e17055; display:none;">(Locked)</span></label>
             <div class="input-row">
                 <div class="input-wrap"><span class="sm-label">X</span><input type="number" id="inpLeft"></div>
@@ -437,10 +453,10 @@
                 <div class="input-wrap"><span class="sm-label">H</span><input type="number" id="inpHeight"></div>
             </div>
 
-            <label style="color:#74b9ff; margin-top:10px;">• Individual Font Sizes (rem)</label>
+            <label style="color:#74b9ff; margin-top:10px;">• Font Sizes (rem) - Batch Enabled</label>
             <div class="input-row">
-                <div class="input-wrap"><span class="sm-label">Subject</span><input type="number" id="inpSubjSize" step="0.05" placeholder="-"></div>
-                <div class="input-wrap"><span class="sm-label">Instructor</span><input type="number" id="inpInstSize" step="0.05" placeholder="-"></div>
+                <div class="input-wrap"><span class="sm-label">Subj</span><input type="number" id="inpSubjSize" step="0.05" placeholder="-"></div>
+                <div class="input-wrap"><span class="sm-label">Inst</span><input type="number" id="inpInstSize" step="0.05" placeholder="-"></div>
                 <div class="input-wrap"><span class="sm-label">Day</span><input type="number" id="inpDaySize" step="0.05" placeholder="-"></div>
             </div>
 
@@ -457,7 +473,18 @@
 
     <main id="mainStage">
         <div class="header">
-            <h3>Preview Stage</h3>
+            <div class="header-left">
+                <div class="header-title">Timetable Preview</div>
+                <div class="legend-bar">
+                    <div class="legend-item"><div class="color-dot" style="background:#0984e3;"></div>Prog</div>
+                    <div class="legend-item"><div class="color-dot" style="background:#f39c12;"></div>Plan</div>
+                    <div class="legend-item"><div class="color-dot" style="background:#d63031;"></div>Art</div>
+                    <div class="legend-item"><div class="color-dot" style="background:#6c5ce7;"></div>Graphic</div>
+                    <div class="legend-item"><div class="color-dot" style="background:#e17055;"></div>Webtoon</div>
+                    <div class="legend-item"><div class="color-dot" style="background:#fdcb6e;"></div>Novel</div>
+                    <div class="legend-item"><div class="color-dot" style="background:#b71540;"></div>K-DT</div>
+                </div>
+            </div>
             <div class="mode-indicator" id="modeIndicator">Mode: Percent (%)</div>
         </div>
         <div class="stage-container" id="stageContainer">
@@ -472,9 +499,7 @@
     </main>
 
     <script>
-        /**
-         * ==================== MODEL ====================
-         */
+        // ==================== MODEL ====================
         class ClassDTO {
             constructor(data) {
                 this.id = data.id || Date.now();
@@ -507,10 +532,8 @@
                 this.config = { start: 9, end: 22 };
                 this.mode = 'percent';
                 this.pxSettings = { colWidth: 150, hourHeight: 60 };
-
                 this.onDataLoaded = null; this.onViewUpdated = null; this.onModeChanged = null;
             }
-
             loadData(jsonData) {
                 this.rawDTOs = jsonData.map(d => new ClassDTO(d));
                 this.rooms = [...new Set(this.rawDTOs.map(d => d.room))].sort();
@@ -518,7 +541,6 @@
                 this._calculateInitialPercentLayout();
                 if (this.onDataLoaded) this.onDataLoaded();
             }
-
             toggleMode() {
                 const prevMode = this.mode;
                 this.mode = (prevMode === 'percent') ? 'pixel' : 'percent';
@@ -526,7 +548,6 @@
                 if (this.onModeChanged) this.onModeChanged(this.mode);
                 if (this.onViewUpdated) this.onViewUpdated();
             }
-
             _convertCoordinates(from, to) {
                 const totalHours = this.config.end - this.config.start;
                 const totalHeightPx = totalHours * this.pxSettings.hourHeight;
@@ -541,7 +562,6 @@
                     }
                 });
             }
-
             _calculateInitialPercentLayout() {
                 this.viewDTOs = [];
                 const totalH = this.config.end - this.config.start;
@@ -558,7 +578,6 @@
                     this.viewDTOs.push(new ViewDTO({ x, y, w, h }, item, days));
                 });
             }
-
             _groupItems() {
                 const map = new Map();
                 this.rawDTOs.forEach(d => {
@@ -581,9 +600,7 @@
             }
         }
 
-        /**
-         * ==================== VIEW ====================
-         */
+        // ==================== VIEW ====================
         class EditorView {
             constructor() {
                 this.els = {
@@ -592,7 +609,7 @@
                     gridLines: document.getElementById('viewGridLines'),
                     cardLayer: document.getElementById('viewCardLayer'),
                     gridCanvas: document.getElementById('gridCanvas'),
-                    selectionBox: document.getElementById('selectionBox'), // [NEW]
+                    selectionBox: document.getElementById('selectionBox'),
 
                     inpLeft: document.getElementById('inpLeft'), inpTop: document.getElementById('inpTop'),
                     inpWidth: document.getElementById('inpWidth'), inpHeight: document.getElementById('inpHeight'),
@@ -604,10 +621,10 @@
                     layoutLockMsg: document.getElementById('layoutLockMsg'),
                     unitLabel: document.getElementById('unitLabel'),
                     modeIndicator: document.getElementById('modeIndicator'),
-                    btnToggle: document.getElementById('btnToggleMode')
+                    btnToggle: document.getElementById('btnToggleMode'),
+                    btnSelectAll: document.getElementById('btnSelectAll')
                 };
             }
-
             updateModeUI(mode) {
                 const isPx = mode === 'pixel';
                 this.els.unitLabel.textContent = isPx ? 'px' : '%';
@@ -615,11 +632,9 @@
                 this.els.btnToggle.textContent = isPx ? 'Switch to Percent (%) Mode' : 'Switch to Pixel (px) Mode';
                 [this.els.inpLeft, this.els.inpTop, this.els.inpWidth, this.els.inpHeight].forEach(inp => inp.step = isPx ? 1 : 0.1);
             }
-
             syncInspector(selectedSet) {
                 const count = selectedSet.size;
                 this.els.selectionCount.textContent = `${count} Selected`;
-
                 const allInputs = [this.els.inpLeft, this.els.inpTop, this.els.inpWidth, this.els.inpHeight, this.els.inpSubject, this.els.inpInstructor, this.els.inpSubjSize, this.els.inpInstSize, this.els.inpDaySize];
 
                 if (count === 0) {
@@ -631,10 +646,17 @@
 
                 const list = Array.from(selectedSet);
                 if (count > 1) {
-                    [this.els.inpLeft, this.els.inpTop, this.els.inpHeight].forEach(el => { el.value = ''; el.disabled = true; el.placeholder = 'Locked'; });
+                    // [Fix] Only lock Position (Left/Top). Allow Width & Height.
+                    [this.els.inpLeft, this.els.inpTop].forEach(el => {
+                        el.value = '';
+                        el.disabled = true;
+                        el.placeholder = 'Locked';
+                    });
                     this.els.layoutLockMsg.style.display = 'inline';
-                    this.els.layoutLockMsg.textContent = '(Pos/H Locked)';
+                    this.els.layoutLockMsg.textContent = '(Pos Locked)';
+
                     this._bindMixedInput(this.els.inpWidth, list, d => parseFloat(d.rect.w.toFixed(2)));
+                    this._bindMixedInput(this.els.inpHeight, list, d => parseFloat(d.rect.h.toFixed(2))); // Height binding for multi-select
                 } else {
                     const dto = list[0];
                     this.els.inpLeft.value = parseFloat(dto.rect.x.toFixed(2));
@@ -643,14 +665,12 @@
                     this.els.inpHeight.value = parseFloat(dto.rect.h.toFixed(2));
                     this.els.layoutLockMsg.style.display = 'none';
                 }
-
                 this._bindMixedInput(this.els.inpSubjSize, list, d => d.style.subjSize);
                 this._bindMixedInput(this.els.inpInstSize, list, d => d.style.instSize);
                 this._bindMixedInput(this.els.inpDaySize, list, d => d.style.daySize);
                 this._bindMixedInput(this.els.inpSubject, list, d => d.customText.subject || '', d => d.core.subject);
                 this._bindMixedInput(this.els.inpInstructor, list, d => d.customText.instructor || '', d => d.core.instructor);
             }
-
             _bindMixedInput(el, list, valueGetter, placeholderGetter = null) {
                 const firstVal = valueGetter(list[0]);
                 const isAllSame = list.every(d => valueGetter(d) === firstVal);
@@ -662,7 +682,6 @@
                     el.placeholder = 'Mixed';
                 }
             }
-
             renderStage(model) {
                 const config = model.config; const rooms = model.rooms; const dim = model.getCanvasDimensions();
                 this.els.gridCanvas.style.width = dim.w; this.els.gridCanvas.style.height = dim.h; this.els.cardLayer.style.height = dim.h;
@@ -681,7 +700,6 @@
                     if (i > 0) { const vl = document.createElement('div'); vl.className = 'v-line'; let leftVal = isPx ? i * model.pxSettings.colWidth + "px" : (i / rooms.length) * 100 + "%"; vl.style.left = leftVal; this.els.gridLines.appendChild(vl); }
                 });
             }
-
             renderCards(model, selectedSet, onCardClick) {
                 this.els.cardLayer.innerHTML = '';
                 const unit = model.mode === 'pixel' ? 'px' : '%';
@@ -694,45 +712,31 @@
                     el.style.left = dto.rect.x + unit; el.style.top = dto.rect.y + unit;
                     el.style.width = dto.rect.w + unit; el.style.height = dto.rect.h + unit;
 
-                    // Standard (Glass) Layout directly implemented
                     el.innerHTML = `
-                            <div style="font-weight:800; font-size:${dto.style.subjSize}rem; margin-bottom:auto; line-height:1.2; text-shadow:0 2px 4px rgba(0,0,0,0.1); word-break:keep-all;">${dto.text.subject}</div>
+                            <div style="font-weight:800; font-size:${dto.style.subjSize}rem; margin-bottom:auto; line-height:1.2; text-shadow:0 1px 2px rgba(0,0,0,0.1); word-break:keep-all;">${dto.text.subject}</div>
                             <div class="instructor-highlight" style="font-size:${dto.style.instSize}rem;">${dto.text.instructor}</div>
                             <div class="day-badge" style="font-size:${dto.style.daySize * 0.9}rem;">${dto.text.days}</div>
                         `;
-
                     el.onclick = (e) => { e.stopPropagation(); onCardClick(dto, e); };
-                    // Add attribute for Drag Selection identification
-                    el.dataset.id = dto.id; // Assume unique or use index
-                    // Actually, we can just match by DTO reference later, but DOM needs mapped back to DTO for drag logic.
-                    // Better to just calculate geometry overlap from DTOs directly in controller.
-
                     this.els.cardLayer.appendChild(el);
                 });
             }
         }
 
-        /**
-         * ==================== CONTROLLER ====================
-         */
+        // ==================== CONTROLLER ====================
         class Controller {
             constructor(model, view) {
                 this.model = model; this.view = view;
                 this.selectedDTOs = new Set();
                 this._initEvents();
-                this._initDragSelection(); // [NEW]
+                this._initDragSelection();
             }
-
             _initEvents() {
-                // 0. Stage Click (Background)
                 document.getElementById('gridCanvas').addEventListener('click', (e) => {
-                    // Only clear if directly clicking background, not via drag end
                     if (!this.isDragSelecting && !e.target.closest('.class-card')) {
                         this.selectedDTOs.clear(); this._refreshSelection();
                     }
                 });
-
-                // 1. Data Load
                 document.getElementById('jsonFileInput').addEventListener('change', (e) => {
                     const file = e.target.files[0]; if (!file) return;
                     const reader = new FileReader();
@@ -745,30 +749,38 @@
                         } catch (err) { alert("Parsing Error"); }
                     }; reader.readAsText(file);
                 });
-
-                // 2. Mode Toggle
                 document.getElementById('btnToggleMode').addEventListener('click', () => { this.model.toggleMode(); this._refreshSelection(); });
+
+                // Select All
+                document.getElementById('btnSelectAll').addEventListener('click', () => {
+                    if (this.model.viewDTOs.length === 0) return;
+                    this.selectedDTOs = new Set(this.model.viewDTOs);
+                    this._refreshSelection();
+                });
 
                 this.model.onDataLoaded = () => this._refreshAll();
                 this.model.onModeChanged = (mode) => { this.view.updateModeUI(mode); this._refreshAll(); };
                 this.model.onViewUpdated = () => { this.view.renderCards(this.model, this.selectedDTOs, (dto, e) => this._handleCardClick(dto, e)); };
 
-                // 3. Layout Inputs (Width allowed for multi)
+                // Layout Inputs
                 ['inpLeft', 'inpTop', 'inpWidth', 'inpHeight'].forEach(id => {
                     document.getElementById(id).addEventListener('input', (e) => {
-                        if (id !== 'inpWidth' && this.selectedDTOs.size > 1) return;
+                        // [Fix] Allow inpHeight for multi-select
+                        if (id !== 'inpWidth' && id !== 'inpHeight' && this.selectedDTOs.size > 1) return;
+
                         const val = parseFloat(e.target.value); if (isNaN(val)) return;
                         this.selectedDTOs.forEach(dto => {
                             const rect = { ...dto.rect };
-                            if (id === 'inpLeft') rect.x = val; if (id === 'inpTop') rect.y = val;
-                            if (id === 'inpWidth') rect.w = val; if (id === 'inpHeight') rect.h = val;
+                            if (id === 'inpLeft') rect.x = val;
+                            if (id === 'inpTop') rect.y = val;
+                            if (id === 'inpWidth') rect.w = val;
+                            if (id === 'inpHeight') rect.h = val;
                             dto.rect = rect;
                         });
                         this.model.onViewUpdated();
                     });
                 });
 
-                // 4. Batch Edit Inputs
                 const bindBatchInput = (id, applyFn) => {
                     document.getElementById(id).addEventListener('input', (e) => {
                         if (this.selectedDTOs.size === 0) return;
@@ -783,11 +795,9 @@
                 bindBatchInput('inpInstSize', (dto, val) => dto.style.instSize = parseFloat(val));
                 bindBatchInput('inpDaySize', (dto, val) => dto.style.daySize = parseFloat(val));
 
-                // 5. Download
                 document.getElementById('btnDownload').addEventListener('click', () => this._downloadHTML());
             }
 
-            // [NEW] Drag Selection Logic
             _initDragSelection() {
                 const canvas = this.view.els.gridCanvas;
                 const selectionBox = this.view.els.selectionBox;
@@ -795,85 +805,47 @@
                 this.isDragSelecting = false;
 
                 canvas.addEventListener('mousedown', (e) => {
-                    // Prevent drag if clicking a card (allow card move later if implemented, or just selection)
                     if (e.target.closest('.class-card')) return;
-                    // Only left click
                     if (e.button !== 0) return;
-
                     this.isDragSelecting = true;
-                    // Coordinates relative to the canvas container
                     const rect = canvas.getBoundingClientRect();
                     startX = e.clientX - rect.left + canvas.scrollLeft;
                     startY = e.clientY - rect.top + canvas.scrollTop;
-
-                    // Initial Box
-                    selectionBox.style.left = startX + 'px';
-                    selectionBox.style.top = startY + 'px';
-                    selectionBox.style.width = '0px';
-                    selectionBox.style.height = '0px';
+                    selectionBox.style.left = startX + 'px'; selectionBox.style.top = startY + 'px';
+                    selectionBox.style.width = '0px'; selectionBox.style.height = '0px';
                     selectionBox.style.display = 'block';
-
-                    // Clear selection unless Ctrl is pressed
-                    if (!e.ctrlKey && !e.metaKey) {
-                        this.selectedDTOs.clear();
-                        this._refreshSelection();
-                    }
+                    if (!e.ctrlKey && !e.metaKey) { this.selectedDTOs.clear(); this._refreshSelection(); }
                 });
-
                 canvas.addEventListener('mousemove', (e) => {
                     if (!this.isDragSelecting) return;
-
                     const rect = canvas.getBoundingClientRect();
                     const currentX = e.clientX - rect.left + canvas.scrollLeft;
                     const currentY = e.clientY - rect.top + canvas.scrollTop;
-
                     const width = Math.abs(currentX - startX);
                     const height = Math.abs(currentY - startY);
-                    const left = Math.min(currentX, startX);
-                    const top = Math.min(currentY, startY);
-
-                    selectionBox.style.width = width + 'px';
-                    selectionBox.style.height = height + 'px';
-                    selectionBox.style.left = left + 'px';
-                    selectionBox.style.top = top + 'px';
+                    selectionBox.style.width = width + 'px'; selectionBox.style.height = height + 'px';
+                    selectionBox.style.left = Math.min(currentX, startX) + 'px'; selectionBox.style.top = Math.min(currentY, startY) + 'px';
                 });
-
-                // Listen on document to catch mouseup even if outside canvas
                 document.addEventListener('mouseup', (e) => {
                     if (!this.isDragSelecting) return;
-
-                    // Final Selection Logic
                     const sbRect = selectionBox.getBoundingClientRect();
-
-                    // If drag was very small, treat as click (handled by click listener)
                     if (sbRect.width > 5 && sbRect.height > 5) {
-                        // Check intersection with all cards
-                        // We compare DOM Rects for simplicity and accuracy across modes
                         const cards = this.view.els.cardLayer.children;
                         Array.from(cards).forEach((cardEl, index) => {
-                            const cardRect = cardEl.getBoundingClientRect();
-                            if (this._checkIntersection(sbRect, cardRect)) {
-                                // Find corresponding DTO. Since we render in order, index matches.
-                                // Safer to map properly but DTOs order matches viewDTOs array order in renderCards
+                            if (this._checkIntersection(sbRect, cardEl.getBoundingClientRect())) {
                                 const dto = this.model.viewDTOs[index];
                                 if (dto) this.selectedDTOs.add(dto);
                             }
                         });
                         this._refreshSelection();
                     }
-
                     this.isDragSelecting = false;
                     selectionBox.style.display = 'none';
                 });
             }
-
             _checkIntersection(r1, r2) {
-                return !(r2.left > r1.right ||
-                    r2.right < r1.left ||
-                    r2.top > r1.bottom ||
-                    r2.bottom < r1.top);
+                return !(r2.left > r1.right || r2.right < r1.left || r2.top > r1.bottom || r2.bottom < r1.top);
             }
-
             _handleCardClick(dto, e) {
                 if (e.ctrlKey || e.metaKey) {
                     if (this.selectedDTOs.has(dto)) this.selectedDTOs.delete(dto);
@@ -883,7 +855,6 @@
                 }
                 this._refreshSelection();
             }
-
             _refreshAll() { this.view.renderStage(this.model); this._refreshSelection(); }
             _refreshSelection() { this.view.renderCards(this.model, this.selectedDTOs, (dto, e) => this._handleCardClick(dto, e)); this.view.syncInspector(this.selectedDTOs); }
 
@@ -925,33 +896,46 @@
                 .h-line { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(255,255,255,0.05); }
                 .v-line { position: absolute; top: 0; bottom: 0; border-right: 1px solid rgba(255,255,255,0.05); }
 
-                /* Core Card Style */
+                /* [Fix] Export CSS: Add proper card-layer positioning */
+                .card-layer { position: absolute; top: 40px; bottom: 0; left: 0; right: 0; z-index: 60; }
+
                 .class-card {
                     position: absolute; cursor: pointer; overflow: hidden;
                     display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between;
-                    padding: 10px; border-radius: 12px; color: white;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
+                    padding: 8px 10px; border-radius: 8px; color: white;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
                     transition: transform 0.2s;
                 }
                 .class-card:hover { transform: scale(1.05); z-index: 100; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
 
                 .instructor-highlight {
                     background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(4px);
-                    border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 20px;
-                    padding: 4px 12px; font-weight: 700; margin-bottom: 6px;
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.1); align-self: flex-start;
+                    border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 12px;
+                    padding: 2px 10px; font-weight: 700; margin-bottom: 4px;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.1); align-self: flex-start;
                 }
-                .day-badge { background: transparent; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; padding: 2px 6px; opacity: 0.9; }
+                .day-badge { background: transparent; border: 1px solid rgba(255,255,255,0.4); border-radius: 4px; padding: 1px 5px; opacity: 0.9; }
 
-                .cat-art-adv { background: #d63031; } .cat-prog-adv { background: #0984e3; } .cat-plan-adv { background: #f1c40f; color: #2d3436; }
-                .cat-graphic { background: #6c5ce7; } .cat-webtoon { background: #e17055; } .cat-kdigital { background: #d35400; } .cat-default { background: #636e72; }
+                .cat-programming { background: #74b9ff; color: #2d3436; }
+                .cat-prog-adv { background: #0984e3; color: #ffffff; }
+                .cat-plan-basic { background: #ffeaa7; color: #2d3436; }
+                .cat-plan-adv { background: #f39c12; color: #ffffff; }
+                .cat-art-basic { background: #ff7675; color: #2d3436; }
+                .cat-art-adv { background: #d63031; color: #ffffff; }
+                .cat-ui, .cat-emo { background: #fab1a0; color: #2d3436; }
+                .cat-graphic { background: #6c5ce7; color: #ffffff; }
+                .cat-webtoon { background: #e17055; color: #ffffff; }
+                .cat-novel { background: #fdcb6e; color: #2d3436; }
+                .cat-port { background: #8e44ad; color: #ffffff; }
+                .cat-kdigital { background: #b71540; color: #ffffff; border: 2px solid #ffcccc; }
+                .cat-default { background: #636e72; color: #ffffff; }
             </style>
 </head>
 <body>
             <div class="header"><h1>ACADEMY TIMETABLE</h1></div>
             <div class="stage-wrap">
                 <div class="time-col" id="tCol"></div>
-                <div class="grid-canvas"><div class="room-headers" id="rHead"></div><div class="grid-lines" id="gLine"></div><div id="cLayer"></div></div>
+                <div class="grid-canvas"><div class="room-headers" id="rHead"></div><div class="grid-lines" id="gLine"></div><div id="cLayer" class="card-layer"></div></div>
             </div>
             <script>
                 const DATA = ${dataJson}; const ROOMS = ${roomsJson}; const CONFIG = { start: 9, end: 22 }; const UNIT = '${unit}'; const IS_PX = ${isPx}; const PX_SET = { colW: 150, hourH: 60 };
@@ -974,11 +958,10 @@
                         const subj = dto.customText.subject || dto.core.subject;
                         const inst = dto.customText.instructor || dto.core.instructor;
                         el.innerHTML = \`
-                            <div style="font-weight:800; font-size:\${dto.style.subjSize}rem; margin-bottom:auto; line-height:1.2; text-shadow:0 2px 4px rgba(0,0,0,0.1); word-break:keep-all;">\${subj}</div>
+                            <div style="font-weight:800; font-size:\${dto.style.subjSize}rem; margin-bottom:auto; line-height:1.2; text-shadow:0 1px 2px rgba(0,0,0,0.1); word-break:keep-all;">\${subj}</div>
                             <div class="instructor-highlight" style="font-size:\${dto.style.instSize}rem;">\${inst}</div>
                             <div class="day-badge" style="font-size:\${dto.style.daySize}rem;">\${dto.defaultText.days}</div>
                         \`;
-
                         cLayer.appendChild(el);
                     });
                 });
