@@ -32,7 +32,7 @@
 
         /* --- Left Control Panel --- */
         aside {
-            width: 320px;
+            width: 340px; /* 패널 너비 약간 확장 */
             background: var(--panel-bg);
             border-right: 1px solid var(--border-color);
             display: flex;
@@ -118,6 +118,13 @@
             flex: 1;
         }
 
+        .sm-label {
+            font-size: 0.7rem;
+            color: #dfe6e9;
+            margin-bottom: 2px;
+            display: block;
+        }
+
         /* --- Right Preview Stage --- */
         main {
             flex: 1;
@@ -145,7 +152,7 @@
             background: #636e72;
         }
 
-        /* Scrollable Container for PX mode */
+        /* Scrollable Container */
         .stage-container {
             flex: 1;
             position: relative;
@@ -163,10 +170,7 @@
             left: 0;
             z-index: 50;
         }
-        /* Grid Canvas:
-           % Mode: width 100%, height 100%
-           Px Mode: width/height calculated by JS
-        */
+
         .grid-canvas {
             flex: 1;
             position: relative;
@@ -237,20 +241,20 @@
 
         .class-card {
             position: absolute;
-            border-radius: 4px;
-            padding: 4px;
+            border-radius: 6px;
+            padding: 6px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
             color: white;
-            font-size: 0.75rem;
             cursor: pointer;
             overflow: hidden;
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
             border: 2px solid transparent;
             transition: transform 0.1s;
+            line-height: 1.2;
         }
 
             .class-card.selected {
@@ -259,6 +263,17 @@
                 box-shadow: 0 0 15px rgba(255, 234, 167, 0.5);
                 transform: scale(1.02);
             }
+
+        /* [NEW] 요일 뱃지 스타일 */
+        .day-badge {
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 12px;
+            padding: 2px 8px;
+            margin-top: 4px;
+            display: inline-block;
+            white-space: nowrap;
+            font-weight: 500;
+        }
 
         /* Categories */
         .cat-art-adv {
@@ -313,12 +328,28 @@
 
             <label style="color:#74b9ff; margin-top:10px;">• Layout (<span id="unitLabel">%</span>)</label>
             <div class="input-row">
-                <div class="input-wrap"><input type="number" id="inpLeft" placeholder="X"></div>
-                <div class="input-wrap"><input type="number" id="inpTop" placeholder="Y"></div>
+                <div class="input-wrap"><span class="sm-label">X</span><input type="number" id="inpLeft"></div>
+                <div class="input-wrap"><span class="sm-label">Y</span><input type="number" id="inpTop"></div>
             </div>
             <div class="input-row">
-                <div class="input-wrap"><input type="number" id="inpWidth" placeholder="W"></div>
-                <div class="input-wrap"><input type="number" id="inpHeight" placeholder="H"></div>
+                <div class="input-wrap"><span class="sm-label">W</span><input type="number" id="inpWidth"></div>
+                <div class="input-wrap"><span class="sm-label">H</span><input type="number" id="inpHeight"></div>
+            </div>
+
+            <label style="color:#74b9ff; margin-top:10px;">• Individual Font Sizes (rem)</label>
+            <div class="input-row">
+                <div class="input-wrap">
+                    <span class="sm-label">Subject</span>
+                    <input type="number" id="inpSubjSize" step="0.05" placeholder="0.9">
+                </div>
+                <div class="input-wrap">
+                    <span class="sm-label">Instructor</span>
+                    <input type="number" id="inpInstSize" step="0.05" placeholder="0.8">
+                </div>
+                <div class="input-wrap">
+                    <span class="sm-label">Day</span>
+                    <input type="number" id="inpDaySize" step="0.05" placeholder="0.75">
+                </div>
             </div>
 
             <label style="color:#74b9ff; margin-top:10px;">• Custom Text</label>
@@ -369,13 +400,20 @@
 
         class ViewDTO {
             constructor(rect, coreData, mergedDays) {
-                this.rect = rect; // {x, y, w, h} (Unit depends on mode)
+                this.rect = rect;
                 this.core = coreData;
                 this.defaultText = { days: mergedDays };
-                // 개별 텍스트 수정을 위한 필드
+
                 this.customText = {
                     subject: '',
                     instructor: ''
+                };
+
+                // [NEW] 개별 폰트 스타일 속성 (기본값 설정)
+                this.style = {
+                    subjSize: 0.9,  // 과목명 크기
+                    instSize: 0.8,  // 강사명 크기
+                    daySize: 0.75   // 요일 크기
                 };
             }
         }
@@ -386,17 +424,9 @@
                 this.viewDTOs = [];
                 this.rooms = [];
                 this.config = { start: 9, end: 22 };
+                this.mode = 'percent';
+                this.pxSettings = { colWidth: 150, hourHeight: 60 };
 
-                // Mode State
-                this.mode = 'percent'; // 'percent' | 'pixel'
-
-                // Pixel Mode Constants (Reference for conversion)
-                this.pxSettings = {
-                    colWidth: 150,  // 1 강의장 당 너비
-                    hourHeight: 60  // 1 시간 당 높이
-                };
-
-                // Listeners
                 this.onDataLoaded = null;
                 this.onViewUpdated = null;
                 this.onModeChanged = null;
@@ -405,42 +435,31 @@
             loadData(jsonData) {
                 this.rawDTOs = jsonData.map(d => new ClassDTO(d));
                 this.rooms = [...new Set(this.rawDTOs.map(d => d.room))].sort();
-
-                // 초기 로드는 항상 % 모드로 계산 (기본값)
                 this.mode = 'percent';
                 this._calculateInitialPercentLayout();
-
                 if (this.onDataLoaded) this.onDataLoaded();
             }
 
-            // 모드 전환 로직 (핵심)
             toggleMode() {
                 const prevMode = this.mode;
                 this.mode = (prevMode === 'percent') ? 'pixel' : 'percent';
-
-                // 좌표 변환 수행
                 this._convertCoordinates(prevMode, this.mode);
-
                 if (this.onModeChanged) this.onModeChanged(this.mode);
                 if (this.onViewUpdated) this.onViewUpdated();
             }
 
-            // 좌표 변환: 기존 편집된 위치를 최대한 보존하며 단위 변경
             _convertCoordinates(from, to) {
-                // 변환 기준 치수 계산
                 const totalHours = this.config.end - this.config.start;
                 const totalHeightPx = totalHours * this.pxSettings.hourHeight;
                 const totalWidthPx = this.rooms.length * this.pxSettings.colWidth;
 
                 this.viewDTOs.forEach(dto => {
                     if (from === 'percent' && to === 'pixel') {
-                        // % -> px
                         dto.rect.x = (dto.rect.x / 100) * totalWidthPx;
                         dto.rect.y = (dto.rect.y / 100) * totalHeightPx;
                         dto.rect.w = (dto.rect.w / 100) * totalWidthPx;
                         dto.rect.h = (dto.rect.h / 100) * totalHeightPx;
                     } else if (from === 'pixel' && to === 'percent') {
-                        // px -> %
                         dto.rect.x = (dto.rect.x / totalWidthPx) * 100;
                         dto.rect.y = (dto.rect.y / totalHeightPx) * 100;
                         dto.rect.w = (dto.rect.w / totalWidthPx) * 100;
@@ -449,7 +468,6 @@
                 });
             }
 
-            // 초기 자동 배치 (% 기준)
             _calculateInitialPercentLayout() {
                 this.viewDTOs = [];
                 const totalH = this.config.end - this.config.start;
@@ -460,28 +478,28 @@
                 grouped.forEach(group => {
                     const item = group.items[0];
                     const roomIdx = this.rooms.indexOf(item.room);
-
                     const x = roomIdx * colW;
                     const y = ((item.startH - this.config.start) / totalH) * 100;
                     const w = colW;
                     const h = ((item.endH - item.startH) / totalH) * 100;
-
                     const days = this._mergeDays(group.items);
                     this.viewDTOs.push(new ViewDTO({ x, y, w, h }, item, days));
                 });
             }
 
-            updateCardRect(dto, newRect) {
-                dto.rect = { ...newRect };
-                if (this.onViewUpdated) this.onViewUpdated();
-            }
+            updateCardRect(dto, newRect) { /* 생략(컨트롤러에서 직접 제어) */ }
 
             updateCardText(dto, type, value) {
                 dto.customText[type] = value;
                 if (this.onViewUpdated) this.onViewUpdated();
             }
 
-            // Helpers
+            // [NEW] 개별 스타일 업데이트
+            updateCardStyle(dto, type, value) {
+                dto.style[type] = value;
+                if (this.onViewUpdated) this.onViewUpdated();
+            }
+
             _groupItems() {
                 const map = new Map();
                 this.rawDTOs.forEach(d => {
@@ -495,11 +513,10 @@
                 const daysSet = new Set(items.map(i => i.days));
                 const hasMWF = [...daysSet].some(d => d.includes('월') && d.includes('수'));
                 const hasTT = [...daysSet].some(d => d.includes('화') && d.includes('목'));
-                if (hasMWF && hasTT) return "월~금 (매일)";
+                if (hasMWF && hasTT) return "월~금";
                 return [...daysSet].join(", ");
             }
 
-            // Px 모드일 때 캔버스 전체 크기 계산
             getCanvasDimensions() {
                 if (this.mode === 'percent') return { w: '100%', h: '100%' };
                 return {
@@ -523,7 +540,6 @@
                     cardLayer: document.getElementById('viewCardLayer'),
                     gridCanvas: document.getElementById('gridCanvas'),
 
-                    // Inputs
                     inpLeft: document.getElementById('inpLeft'),
                     inpTop: document.getElementById('inpTop'),
                     inpWidth: document.getElementById('inpWidth'),
@@ -531,6 +547,11 @@
 
                     inpSubject: document.getElementById('inpSubject'),
                     inpInstructor: document.getElementById('inpInstructor'),
+
+                    // [NEW] Individual Font Inputs
+                    inpSubjSize: document.getElementById('inpSubjSize'),
+                    inpInstSize: document.getElementById('inpInstSize'),
+                    inpDaySize: document.getElementById('inpDaySize'),
 
                     info: document.getElementById('selectedCardInfo'),
                     unitLabel: document.getElementById('unitLabel'),
@@ -546,7 +567,6 @@
                 this.els.modeIndicator.textContent = isPx ? 'Mode: Pixel (px)' : 'Mode: Percent (%)';
                 this.els.btnToggle.textContent = isPx ? 'Switch to Percent (%) Mode' : 'Switch to Pixel (px) Mode';
 
-                // Input Step 조정
                 const inputs = [this.els.inpLeft, this.els.inpTop, this.els.inpWidth, this.els.inpHeight];
                 inputs.forEach(inp => inp.step = isPx ? 1 : 0.1);
             }
@@ -556,23 +576,18 @@
                 const rooms = model.rooms;
                 const dim = model.getCanvasDimensions();
 
-                // 캔버스 크기 조정
                 this.els.gridCanvas.style.width = dim.w;
                 this.els.gridCanvas.style.height = dim.h;
-                this.els.cardLayer.style.height = dim.h; // 중요: 높이 동기화
+                this.els.cardLayer.style.height = dim.h;
 
-                // Clear
                 this.els.timeCol.innerHTML = '';
                 this.els.headers.innerHTML = '';
                 this.els.gridLines.innerHTML = '';
 
-                // Grid Rendering
                 const isPx = model.mode === 'pixel';
                 const totalH = config.end - config.start;
 
-                // 1. Time Column
                 for (let h = config.start; h <= config.end; h++) {
-                    // Position 계산: Px모드면 픽셀값, 아니면 %값
                     let posVal = isPx
                         ? (h - config.start) * model.pxSettings.hourHeight + "px"
                         : ((h - config.start) / totalH) * 100 + "%";
@@ -591,7 +606,6 @@
                     }
                 }
 
-                // 2. Room Headers
                 rooms.forEach((room, i) => {
                     const hd = document.createElement('div');
                     hd.className = 'room-header';
@@ -601,11 +615,9 @@
                     if (i > 0) {
                         const vl = document.createElement('div');
                         vl.className = 'v-line';
-                        // Position 계산
                         let leftVal = isPx
                             ? i * model.pxSettings.colWidth + "px"
                             : (i / rooms.length) * 100 + "%";
-
                         vl.style.left = leftVal;
                         this.els.gridLines.appendChild(vl);
                     }
@@ -625,14 +637,15 @@
                     el.style.width = dto.rect.w + unit;
                     el.style.height = dto.rect.h + unit;
 
-                    // 텍스트 표시 우선순위: Custom -> Default
                     const subject = dto.customText.subject || dto.core.subject;
                     const instructor = dto.customText.instructor || dto.core.instructor;
+                    const days = dto.defaultText.days;
 
+                    // [NEW] 개별 폰트 사이즈 및 뱃지 스타일 적용
                     el.innerHTML = `
-                            <div style="font-weight:800; margin-bottom:2px;">${subject}</div>
-                            <div style="opacity:0.9;">${instructor}</div>
-                            <div style="font-size:0.7rem; margin-top:2px;">${dto.defaultText.days}</div>
+                            <div style="font-weight:800; font-size:${dto.style.subjSize}rem; margin-bottom:2px; word-break:keep-all;">${subject}</div>
+                            <div style="opacity:0.9; font-size:${dto.style.instSize}rem;">${instructor}</div>
+                            <div class="day-badge" style="font-size:${dto.style.daySize}rem;">${days}</div>
                         `;
 
                     el.onclick = (e) => {
@@ -650,17 +663,20 @@
                 el.classList.add('selected');
                 this.selectedCardEl = el;
 
-                this.els.info.innerHTML = `Selected: <b>${dto.core.subject}</b>`;
+                this.els.info.innerHTML = `Selected: <b style="color:white;">${dto.core.subject}</b>`;
 
-                // 좌표 바인딩
                 this.els.inpLeft.value = parseFloat(dto.rect.x.toFixed(2));
                 this.els.inpTop.value = parseFloat(dto.rect.y.toFixed(2));
                 this.els.inpWidth.value = parseFloat(dto.rect.w.toFixed(2));
                 this.els.inpHeight.value = parseFloat(dto.rect.h.toFixed(2));
 
-                // 텍스트 바인딩
-                this.els.inpSubject.value = dto.customText.subject || ''; // 비어있으면 원본 안보여주고 공란 (override 의도)
-                this.els.inpSubject.placeholder = dto.core.subject; // placeholder로 원본 표시
+                // [NEW] 3개의 폰트 사이즈 바인딩
+                this.els.inpSubjSize.value = dto.style.subjSize;
+                this.els.inpInstSize.value = dto.style.instSize;
+                this.els.inpDaySize.value = dto.style.daySize;
+
+                this.els.inpSubject.value = dto.customText.subject || '';
+                this.els.inpSubject.placeholder = dto.core.subject;
                 this.els.inpInstructor.value = dto.customText.instructor || '';
                 this.els.inpInstructor.placeholder = dto.core.instructor;
             }
@@ -705,12 +721,11 @@
                 this.model.onDataLoaded = () => this._refreshAll();
                 this.model.onModeChanged = (mode) => {
                     this.view.updateModeUI(mode);
-                    this._refreshAll(); // 모드 바뀌면 그리드 다시 그려야 함
+                    this._refreshAll();
                 };
                 this.model.onViewUpdated = () => {
                     this.view.renderCards(this.model, (dto) => {
                         this.currentSelectedDTO = dto;
-                        // 선택 상태 유지 로직은 복잡해지므로 생략, 다시 클릭 필요
                     });
                 };
 
@@ -727,7 +742,7 @@
                         if (id === 'inpWidth') rect.w = val;
                         if (id === 'inpHeight') rect.h = val;
 
-                        // UI 즉시 반영 (Performance)
+                        // UI Update
                         if (this.view.selectedCardEl) {
                             const unit = this.model.mode === 'pixel' ? 'px' : '%';
                             if (id === 'inpLeft') this.view.selectedCardEl.style.left = val + unit;
@@ -735,7 +750,6 @@
                             if (id === 'inpWidth') this.view.selectedCardEl.style.width = val + unit;
                             if (id === 'inpHeight') this.view.selectedCardEl.style.height = val + unit;
                         }
-                        // Data Update
                         this.currentSelectedDTO.rect = rect;
                     });
                 });
@@ -750,6 +764,22 @@
                     this.model.updateCardText(this.currentSelectedDTO, 'instructor', e.target.value);
                 });
 
+                // [NEW] Input Bindings (Individual Font Sizes)
+                // Helper function to bind font inputs
+                const bindFontInput = (id, type) => {
+                    document.getElementById(id).addEventListener('input', (e) => {
+                        if (!this.currentSelectedDTO) return;
+                        const val = parseFloat(e.target.value);
+                        if (isNaN(val) || val <= 0) return;
+
+                        this.model.updateCardStyle(this.currentSelectedDTO, type, val);
+                    });
+                };
+
+                bindFontInput('inpSubjSize', 'subjSize');
+                bindFontInput('inpInstSize', 'instSize');
+                bindFontInput('inpDaySize', 'daySize');
+
                 // 6. Download
                 document.getElementById('btnDownload').addEventListener('click', () => this._downloadHTML());
             }
@@ -761,12 +791,9 @@
 
             _downloadHTML() {
                 if (this.model.viewDTOs.length === 0) { alert("No data"); return; }
-
                 const exportData = JSON.stringify(this.model.viewDTOs);
                 const roomsData = JSON.stringify(this.model.rooms);
-                const mode = this.model.mode; // 'percent' or 'pixel'
-
-                // 템플릿 생성 시 현재 모드 정보 주입
+                const mode = this.model.mode;
                 const htmlContent = this._generateHTMLTemplate(exportData, roomsData, mode);
 
                 const blob = new Blob([htmlContent], { type: 'text/html' });
@@ -782,7 +809,6 @@
             _generateHTMLTemplate(dataJson, roomsJson, mode) {
                 const isPx = mode === 'pixel';
                 const unit = isPx ? 'px' : '%';
-                // Px모드일 경우 뷰어에서도 스크롤이 필요하므로 CSS 조정
                 const containerStyle = isPx ? 'overflow: auto;' : 'overflow: hidden;';
                 const canvasStyle = isPx
                     ? `width: ${this.model.getCanvasDimensions().w}; height: ${this.model.getCanvasDimensions().h};`
@@ -791,109 +817,116 @@
                 return `<!DOCTYPE html>
 <html lang="ko">
 <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Timetable Viewer (${mode})</title>
-        <style>
-            * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
-            body { background-color: #1e272e; color: #f5f6fa; width: 100vw; height: 100vh; display: flex; flex-direction: column; }
-            .header { height: 60px; display: flex; align-items: center; justify-content: center; background: #2d3436; flex-shrink: 0; }
-            .header h1 { font-size: 1.5rem; color: #74b9ff; }
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Timetable Viewer (${mode})</title>
+            <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
+                body { background-color: #1e272e; color: #f5f6fa; width: 100vw; height: 100vh; display: flex; flex-direction: column; }
+                .header { height: 60px; display: flex; align-items: center; justify-content: center; background: #2d3436; flex-shrink: 0; }
+                .header h1 { font-size: 1.5rem; color: #74b9ff; }
 
-            .stage-wrap { flex: 1; position: relative; display: flex; ${containerStyle} }
-            .time-col { width: 60px; background: #222f3e; border-right: 1px solid rgba(255,255,255,0.1); position: sticky; left: 0; z-index: 50; flex-shrink: 0; }
+                .stage-wrap { flex: 1; position: relative; display: flex; ${containerStyle} }
+                .time-col { width: 60px; background: #222f3e; border-right: 1px solid rgba(255,255,255,0.1); position: sticky; left: 0; z-index: 50; flex-shrink: 0; }
 
-            /* Dynamic Canvas Size */
-            .grid-canvas { position: relative; ${canvasStyle} }
+                .grid-canvas { position: relative; ${canvasStyle} }
 
-            .time-label { position: absolute; right: 5px; font-size: 0.75rem; color: #b2bec3; transform: translateY(-50%); }
-            .room-headers { display: flex; height: 40px; border-bottom: 1px solid rgba(255,255,255,0.1); position: absolute; top: 0; width: 100%; background: #2d3436; z-index: 40; }
-            .room-header { flex: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.1); font-weight: bold; font-size: 0.9rem; }
-            .grid-lines { position: absolute; top: 40px; bottom: 0; left: 0; right: 0; pointer-events: none; }
-            .h-line { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(255,255,255,0.05); }
-            .v-line { position: absolute; top: 0; bottom: 0; border-right: 1px solid rgba(255,255,255,0.05); }
+                .time-label { position: absolute; right: 5px; font-size: 0.75rem; color: #b2bec3; transform: translateY(-50%); }
+                .room-headers { display: flex; height: 40px; border-bottom: 1px solid rgba(255,255,255,0.1); position: absolute; top: 0; width: 100%; background: #2d3436; z-index: 40; }
+                .room-header { flex: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.1); font-weight: bold; font-size: 0.9rem; }
+                .grid-lines { position: absolute; top: 40px; bottom: 0; left: 0; right: 0; pointer-events: none; }
+                .h-line { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(255,255,255,0.05); }
+                .v-line { position: absolute; top: 0; bottom: 0; border-right: 1px solid rgba(255,255,255,0.05); }
 
-            .class-card {
-                position: absolute; border-radius: 6px; padding: 5px;
-                display: flex; flex-direction: column; align-items: center; justify-content: center;
-                text-align: center; color: white; font-size: 0.8rem;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.3); overflow: hidden;
-                transition: transform 0.2s; cursor: pointer;
-            }
-            .class-card:hover { transform: scale(1.05); z-index: 100; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+                .class-card {
+                    position: absolute; border-radius: 6px; padding: 6px;
+                    display: flex; flex-direction: column; align-items: center; justify-content: center;
+                    text-align: center; color: white;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.3); overflow: hidden;
+                    transition: transform 0.2s; cursor: pointer; line-height: 1.2;
+                }
+                .class-card:hover { transform: scale(1.05); z-index: 100; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
 
-            /* Categories */
-            .cat-art-adv { background: #d63031; } .cat-prog-adv { background: #0984e3; }
-            .cat-plan-adv { background: #f1c40f; color: #2d3436; } .cat-graphic { background: #6c5ce7; }
-            .cat-webtoon { background: #e17055; } .cat-kdigital { background: #d35400; }
-            .cat-default { background: #636e72; }
-        </style>
+                /* Badge Style */
+                .day-badge {
+                    background: rgba(0, 0, 0, 0.25);
+                    border-radius: 12px;
+                    padding: 2px 8px;
+                    margin-top: 4px;
+                    display: inline-block;
+                    white-space: nowrap;
+                    font-weight: 500;
+                }
+
+                .cat-art-adv { background: #d63031; } .cat-prog-adv { background: #0984e3; }
+                .cat-plan-adv { background: #f1c40f; color: #2d3436; } .cat-graphic { background: #6c5ce7; }
+                .cat-webtoon { background: #e17055; } .cat-kdigital { background: #d35400; }
+                .cat-default { background: #636e72; }
+            </style>
 </head>
 <body>
-        <div class="header"><h1>ACADEMY TIMETABLE</h1></div>
-        <div class="stage-wrap">
-            <div class="time-col" id="tCol"></div>
-            <div class="grid-canvas">
-                <div class="room-headers" id="rHead"></div>
-                <div class="grid-lines" id="gLine"></div>
-                <div id="cLayer"></div>
+            <div class="header"><h1>ACADEMY TIMETABLE</h1></div>
+            <div class="stage-wrap">
+                <div class="time-col" id="tCol"></div>
+                <div class="grid-canvas">
+                    <div class="room-headers" id="rHead"></div>
+                    <div class="grid-lines" id="gLine"></div>
+                    <div id="cLayer"></div>
+                </div>
             </div>
-        </div>
-        <script>
-            const DATA = ${dataJson};
-            const ROOMS = ${roomsJson};
-            const CONFIG = { start: 9, end: 22 };
-            const UNIT = '${unit}';
-            const IS_PX = ${isPx};
+            <script>
+                const DATA = ${dataJson};
+                const ROOMS = ${roomsJson};
+                const CONFIG = { start: 9, end: 22 };
+                const UNIT = '${unit}';
+                const IS_PX = ${isPx};
+                const PX_SET = { colW: 150, hourH: 60 };
 
-            // Px모드용 설정 (뷰어 렌더링용)
-            const PX_SET = { colW: 150, hourH: 60 };
+                document.addEventListener('DOMContentLoaded', () => {
+                    const tCol = document.getElementById('tCol');
+                    const rHead = document.getElementById('rHead');
+                    const gLine = document.getElementById('gLine');
+                    const cLayer = document.getElementById('cLayer');
+                    const totalH = CONFIG.end - CONFIG.start;
 
-            document.addEventListener('DOMContentLoaded', () => {
-                const tCol = document.getElementById('tCol');
-                const rHead = document.getElementById('rHead');
-                const gLine = document.getElementById('gLine');
-                const cLayer = document.getElementById('cLayer');
-                const totalH = CONFIG.end - CONFIG.start;
-
-                // 1. Grid Render
-                for(let h=CONFIG.start; h<=CONFIG.end; h++) {
-                    let pos = IS_PX
-                        ? (h - CONFIG.start) * PX_SET.hourH + 'px'
-                        : ((h - CONFIG.start) / totalH) * 100 + '%';
-
-                    const l = document.createElement('div'); l.className='time-label'; l.innerText = h+":00"; l.style.top=pos; tCol.appendChild(l);
-                    if(h !== CONFIG.end){
-                        const hl = document.createElement('div'); hl.className='h-line'; hl.style.top=pos; gLine.appendChild(hl);
+                    for(let h=CONFIG.start; h<=CONFIG.end; h++) {
+                        let pos = IS_PX
+                            ? (h - CONFIG.start) * PX_SET.hourH + 'px'
+                            : ((h - CONFIG.start) / totalH) * 100 + '%';
+                        const l = document.createElement('div'); l.className='time-label'; l.innerText = h+":00"; l.style.top=pos; tCol.appendChild(l);
+                        if(h !== CONFIG.end){
+                            const hl = document.createElement('div'); hl.className='h-line'; hl.style.top=pos; gLine.appendChild(hl);
+                        }
                     }
-                }
-                ROOMS.forEach((r, i) => {
-                    const rh = document.createElement('div'); rh.className='room-header'; rh.innerText=r; rHead.appendChild(rh);
-                    if(i>0) {
-                        const vl = document.createElement('div'); vl.className='v-line';
-                        let left = IS_PX ? i * PX_SET.colW + 'px' : (i/ROOMS.length)*100 + '%';
-                        vl.style.left=left; gLine.appendChild(vl);
-                    }
+                    ROOMS.forEach((r, i) => {
+                        const rh = document.createElement('div'); rh.className='room-header'; rh.innerText=r; rHead.appendChild(rh);
+                        if(i>0) {
+                            const vl = document.createElement('div'); vl.className='v-line';
+                            let left = IS_PX ? i * PX_SET.colW + 'px' : (i/ROOMS.length)*100 + '%';
+                            vl.style.left=left; gLine.appendChild(vl);
+                        }
+                    });
+
+                    DATA.forEach(dto => {
+                        const el = document.createElement('div');
+                        el.className = 'class-card cat-' + dto.core.category;
+                        el.style.left = dto.rect.x + UNIT;
+                        el.style.top = dto.rect.y + UNIT;
+                        el.style.width = dto.rect.w + UNIT;
+                        el.style.height = dto.rect.h + UNIT;
+
+                        const subject = dto.customText.subject || dto.core.subject;
+                        const instructor = dto.customText.instructor || dto.core.instructor;
+                        const days = dto.defaultText.days;
+
+                        // [Export] 개별 폰트 스타일 및 뱃지 적용
+                        el.innerHTML = "<div style='font-weight:800; margin-bottom:2px; word-break:keep-all; font-size:" + dto.style.subjSize + "rem'>" + subject + "</div>" +
+                                       "<div style='opacity:0.9; font-size:" + dto.style.instSize + "rem'>" + instructor + "</div>" +
+                                       "<div class='day-badge' style='font-size:" + dto.style.daySize + "rem'>" + days + "</div>";
+                        cLayer.appendChild(el);
+                    });
                 });
-
-                // 2. Card Render
-                DATA.forEach(dto => {
-                    const el = document.createElement('div');
-                    el.className = 'class-card cat-' + dto.core.category;
-                    el.style.left = dto.rect.x + UNIT;
-                    el.style.top = dto.rect.y + UNIT;
-                    el.style.width = dto.rect.w + UNIT;
-                    el.style.height = dto.rect.h + UNIT;
-
-                    // Custom Text Logic
-                    const subject = dto.customText.subject || dto.core.subject;
-                    const instructor = dto.customText.instructor || dto.core.instructor;
-
-                    el.innerHTML = "<b>" + subject + "</b><br><span style='font-size:0.9em; opacity:0.8'>" + instructor + "</span><br><span style='font-size:0.8em'>" + dto.defaultText.days + "</span>";
-                    cLayer.appendChild(el);
-                });
-            });
-        <\/script>
+            <\/script>
 </body>
 </html>`;
             }
