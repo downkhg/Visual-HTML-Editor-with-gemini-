@@ -515,7 +515,7 @@
                 this.rect = rect; this.core = coreData;
                 this.defaultText = { days: mergedDays };
                 this.customText = { subject: '', instructor: '' };
-                this.style = { subjSize: 0.9, instSize: 0.8, daySize: 0.75 };
+                this.style = { subjSize: 1.3, instSize: 1, daySize: 1 };
             }
             get text() {
                 return {
@@ -566,14 +566,16 @@
                 this.viewDTOs = [];
                 const totalH = this.config.end - this.config.start;
                 const colW = 100 / this.rooms.length;
+                const maginW = 0.1;
+                const maginH = 0.2;
                 const grouped = this._groupItems();
                 grouped.forEach(group => {
                     const item = group.items[0];
                     const roomIdx = this.rooms.indexOf(item.room);
                     const x = roomIdx * colW;
                     const y = ((item.startH - this.config.start) / totalH) * 100;
-                    const w = colW;
-                    const h = ((item.endH - item.startH) / totalH) * 100;
+                    const w = colW - maginW;
+                    const h = (((item.endH - item.startH) / totalH) * 100) - maginH;
                     const days = this._mergeDays(group.items);
                     this.viewDTOs.push(new ViewDTO({ x, y, w, h }, item, days));
                 });
@@ -713,7 +715,7 @@
                     el.style.width = dto.rect.w + unit; el.style.height = dto.rect.h + unit;
 
                     el.innerHTML = `
-                            <div style="font-weight:800; font-size:${dto.style.subjSize}rem; margin-bottom:auto; line-height:1.2; text-shadow:0 1px 2px rgba(0,0,0,0.1); word-break:keep-all;">${dto.text.subject}</div>
+                            <div style="font-weight:800; font-size:${dto.style.subjSize}rem; margin-bottom:auto; line-height:1.2; text-shadow:0 1px 2px rgba(0,0,0,0.1); word-break:normal;">${dto.text.subject}</div>
                             <div class="instructor-highlight" style="font-size:${dto.style.instSize}rem;">${dto.text.instructor}</div>
                             <div class="day-badge" style="font-size:${dto.style.daySize * 0.9}rem;">${dto.text.days}</div>
                         `;
