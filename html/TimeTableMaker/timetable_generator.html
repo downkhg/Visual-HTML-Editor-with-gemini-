@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Timetable Generator & Editor</title>
+    <title>Timetable Generator & Editor (Dual Mode)</title>
     <style>
         /* ==================== 1. Editor UI Styles ==================== */
         :root {
@@ -14,95 +14,281 @@
             --border-color: rgba(255,255,255,0.1);
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
-        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Pretendard', sans-serif;
+        }
+
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
-            width: 100vw; height: 100vh;
-            display: flex; overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
         }
 
         /* --- Left Control Panel --- */
         aside {
-            width: 300px;
+            width: 320px;
             background: var(--panel-bg);
             border-right: 1px solid var(--border-color);
-            display: flex; flex-direction: column;
+            display: flex;
+            flex-direction: column;
             padding: 20px;
             z-index: 100;
             box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+            overflow-y: auto;
         }
 
-        aside h2 { font-size: 1.2rem; margin-bottom: 20px; color: var(--accent-color); }
-        
-        .control-group { margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; }
-        .control-group label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: #b2bec3; }
-        
-        input[type="file"] { width: 100%; margin-bottom: 10px; font-size: 0.8rem; }
-        
+            aside h2 {
+                font-size: 1.1rem;
+                margin-bottom: 15px;
+                color: var(--accent-color);
+            }
+
+        .control-group {
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+            .control-group label {
+                display: block;
+                margin-bottom: 6px;
+                font-size: 0.8rem;
+                color: #b2bec3;
+            }
+
+        input[type="file"], input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            background: #1e272e;
+            border: 1px solid #636e72;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+        }
+
         .btn {
-            width: 100%; padding: 10px; border: none; border-radius: 4px;
-            background: var(--accent-color); color: white; font-weight: bold; cursor: pointer;
-            transition: background 0.2s; margin-top: 5px;
-        }
-        .btn:hover { background: #74b9ff; }
-        .btn-success { background: #00b894; }
-        .btn-success:hover { background: #55efc4; }
-
-        .input-row { display: flex; gap: 10px; margin-bottom: 10px; }
-        .input-wrap { flex: 1; }
-        input[type="number"] {
-            width: 100%; padding: 8px; background: #1e272e; border: 1px solid #636e72;
-            color: white; border-radius: 4px;
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            background: var(--accent-color);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 5px;
+            font-size: 0.85rem;
         }
 
-        #selectedCardInfo { font-size: 0.9rem; color: #dfe6e9; margin-bottom: 10px; min-height: 40px;}
+            .btn:hover {
+                background: #74b9ff;
+            }
+
+        .btn-success {
+            background: #00b894;
+        }
+
+            .btn-success:hover {
+                background: #55efc4;
+            }
+
+        .btn-toggle {
+            background: #e17055;
+            margin-bottom: 10px;
+        }
+
+            .btn-toggle:hover {
+                background: #ff7675;
+            }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+
+        .input-wrap {
+            flex: 1;
+        }
 
         /* --- Right Preview Stage --- */
-        main { flex: 1; display: flex; flex-direction: column; position: relative; }
-        
-        .header { height: 50px; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--border-color); }
-        .stage-container { flex: 1; position: relative; display: flex; }
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
 
-        /* --- Timetable Grid Styles (Shared with Viewer) --- */
-        .time-col { width: 60px; border-right: 1px solid var(--border-color); position: relative; background: #222f3e; }
-        .grid-canvas { flex: 1; position: relative; }
-        
-        .time-label { position: absolute; right: 5px; font-size: 0.75rem; color: #b2bec3; transform: translateY(-50%); }
-        .room-headers { display: flex; height: 40px; border-bottom: 1px solid var(--border-color); position: absolute; top: 0; width: 100%; }
-        .room-header { flex: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--border-color); font-size: 0.85rem; font-weight: bold; background: #2d3436; }
-        
-        .grid-lines { position: absolute; top: 40px; bottom: 0; left: 0; right: 0; pointer-events: none; }
-        .h-line { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(255,255,255,0.05); }
-        .v-line { position: absolute; top: 0; bottom: 0; border-right: 1px solid rgba(255,255,255,0.05); }
+        .header {
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
 
-        .card-layer { position: absolute; top: 40px; bottom: 0; left: 0; right: 0; }
-        
+        .mode-indicator {
+            font-size: 0.8rem;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: #636e72;
+        }
+
+        /* Scrollable Container for PX mode */
+        .stage-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            overflow: auto;
+        }
+
+        /* --- Timetable Grid --- */
+        .time-col {
+            width: 60px;
+            flex-shrink: 0;
+            border-right: 1px solid var(--border-color);
+            background: #222f3e;
+            position: sticky;
+            left: 0;
+            z-index: 50;
+        }
+        /* Grid Canvas:
+           % Mode: width 100%, height 100%
+           Px Mode: width/height calculated by JS
+        */
+        .grid-canvas {
+            flex: 1;
+            position: relative;
+            min-width: 100%;
+            min-height: 100%;
+        }
+
+        .time-label {
+            position: absolute;
+            right: 5px;
+            font-size: 0.75rem;
+            color: #b2bec3;
+            transform: translateY(-50%);
+        }
+
+        .room-headers {
+            display: flex;
+            height: 40px;
+            border-bottom: 1px solid var(--border-color);
+            position: absolute;
+            top: 0;
+            width: 100%;
+            left: 0;
+            background: #2d3436;
+            z-index: 40;
+        }
+
+        .room-header {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .grid-lines {
+            position: absolute;
+            top: 40px;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            pointer-events: none;
+        }
+
+        .h-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            border-top: 1px dashed rgba(255,255,255,0.05);
+        }
+
+        .v-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            border-right: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .card-layer {
+            position: absolute;
+            top: 40px;
+            bottom: 0;
+            left: 0;
+            right: 0;
+        }
+
         .class-card {
-            position: absolute; border-radius: 4px; padding: 5px;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            text-align: center; color: white; font-size: 0.75rem;
-            cursor: pointer; overflow: hidden;
+            position: absolute;
+            border-radius: 4px;
+            padding: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: white;
+            font-size: 0.75rem;
+            cursor: pointer;
+            overflow: hidden;
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            border: 2px solid transparent; /* Selection Border */
+            border: 2px solid transparent;
             transition: transform 0.1s;
         }
-        
-        /* Editor Specific: Selected State */
-        .class-card.selected {
-            border-color: #ffeaa7;
-            z-index: 1000 !important;
-            box-shadow: 0 0 15px rgba(255, 234, 167, 0.5);
-            transform: scale(1.02);
-        }
+
+            .class-card.selected {
+                border-color: #ffeaa7;
+                z-index: 1000 !important;
+                box-shadow: 0 0 15px rgba(255, 234, 167, 0.5);
+                transform: scale(1.02);
+            }
 
         /* Categories */
-        .cat-art-adv { background: #d63031; } .cat-prog-adv { background: #0984e3; }
-        .cat-plan-adv { background: #f1c40f; color: #2d3436; } .cat-graphic { background: #6c5ce7; }
-        .cat-webtoon { background: #e17055; } .cat-kdigital { background: #d35400; }
-        .cat-default { background: #636e72; }
+        .cat-art-adv {
+            background: #d63031;
+        }
 
+        .cat-prog-adv {
+            background: #0984e3;
+        }
+
+        .cat-plan-adv {
+            background: #f1c40f;
+            color: #2d3436;
+        }
+
+        .cat-graphic {
+            background: #6c5ce7;
+        }
+
+        .cat-webtoon {
+            background: #e17055;
+        }
+
+        .cat-kdigital {
+            background: #d35400;
+        }
+
+        .cat-default {
+            background: #636e72;
+        }
     </style>
 </head>
 <body>
@@ -111,38 +297,49 @@
         <h2>⚙️ Editor Control</h2>
 
         <div class="control-group">
+            <label>Mode Setting</label>
+            <button class="btn btn-toggle" id="btnToggleMode">Switch to Pixel (px) Mode</button>
+            <p style="font-size:0.75rem; color:#b2bec3;">* Pixel mode allows scrollbars.</p>
+        </div>
+
+        <div class="control-group">
             <label>1. Load JSON Data</label>
             <input type="file" id="jsonFileInput" accept=".json, .js">
-            <p style="font-size:0.7rem; color:#636e72; margin-top:5px;">* Select a JSON file containing the timetable array.</p>
         </div>
 
         <div class="control-group">
             <label>2. Edit Selected Card</label>
-            <div id="selectedCardInfo">No card selected</div>
-            
+            <div id="selectedCardInfo" style="margin-bottom:10px; font-size:0.9rem; color:#dfe6e9; min-height:20px;">No card selected</div>
+
+            <label style="color:#74b9ff; margin-top:10px;">• Layout (<span id="unitLabel">%</span>)</label>
             <div class="input-row">
-                <div class="input-wrap"><label>Left (%)</label><input type="number" id="inpLeft" step="0.1"></div>
-                <div class="input-wrap"><label>Top (%)</label><input type="number" id="inpTop" step="0.1"></div>
+                <div class="input-wrap"><input type="number" id="inpLeft" placeholder="X"></div>
+                <div class="input-wrap"><input type="number" id="inpTop" placeholder="Y"></div>
             </div>
             <div class="input-row">
-                <div class="input-wrap"><label>Width (%)</label><input type="number" id="inpWidth" step="0.1"></div>
-                <div class="input-wrap"><label>Height (%)</label><input type="number" id="inpHeight" step="0.1"></div>
+                <div class="input-wrap"><input type="number" id="inpWidth" placeholder="W"></div>
+                <div class="input-wrap"><input type="number" id="inpHeight" placeholder="H"></div>
             </div>
+
+            <label style="color:#74b9ff; margin-top:10px;">• Custom Text</label>
+            <input type="text" id="inpSubject" placeholder="Override Subject">
+            <input type="text" id="inpInstructor" placeholder="Override Instructor">
         </div>
 
         <div class="control-group" style="border:none;">
             <label>3. Export</label>
-            <button class="btn btn-success" id="btnDownload">Download 'timetableVeiw.html'</button>
+            <button class="btn btn-success" id="btnDownload">Download Viewer (.html)</button>
         </div>
     </aside>
 
     <main>
         <div class="header">
-            <h3>Timetable Preview Stage</h3>
+            <h3>Preview Stage</h3>
+            <div class="mode-indicator" id="modeIndicator">Mode: Percent (%)</div>
         </div>
-        <div class="stage-container">
+        <div class="stage-container" id="stageContainer">
             <div class="time-col" id="viewTimeCol"></div>
-            <div class="grid-canvas">
+            <div class="grid-canvas" id="gridCanvas">
                 <div class="room-headers" id="viewHeaders"></div>
                 <div class="grid-lines" id="viewGridLines"></div>
                 <div class="card-layer" id="viewCardLayer"></div>
@@ -153,119 +350,168 @@
     <script>
         /**
          * =======================================================
-         * [MODEL] Data Definitions & State Management
+         * [MODEL] Data & State
          * =======================================================
          */
-        
-        // 1. Data Structure (DTO)
+
         class ClassDTO {
             constructor(data) {
-                // 기본 데이터 복사
                 this.id = data.id || Date.now();
                 this.subject = data.subject;
                 this.instructor = data.instructor;
                 this.room = data.room;
                 this.days = data.days;
                 this.category = data.category || 'default';
-                this.isBadge = data.isBadge || '';
-                
-                // 시간 정보
                 this.startH = parseInt(data.startH);
                 this.endH = parseInt(data.endH);
             }
         }
 
-        // 2. View Data Object (Contains Mutable Layout Info)
         class ViewDTO {
             constructor(rect, coreData, mergedDays) {
-                this.rect = rect; // {x, y, w, h} (Percent)
-                this.core = coreData; 
-                this.text = {
-                    days: mergedDays
+                this.rect = rect; // {x, y, w, h} (Unit depends on mode)
+                this.core = coreData;
+                this.defaultText = { days: mergedDays };
+                // 개별 텍스트 수정을 위한 필드
+                this.customText = {
+                    subject: '',
+                    instructor: ''
                 };
             }
         }
 
-        // 3. Application State Model
         class AppModel {
             constructor() {
-                this.rawDTOs = []; // Loaded ClassDTOs
-                this.viewDTOs = []; // Calculated ViewDTOs (The ones we edit)
+                this.rawDTOs = [];
+                this.viewDTOs = [];
                 this.rooms = [];
                 this.config = { start: 9, end: 22 };
-                
-                // Event Listeners
+
+                // Mode State
+                this.mode = 'percent'; // 'percent' | 'pixel'
+
+                // Pixel Mode Constants (Reference for conversion)
+                this.pxSettings = {
+                    colWidth: 150,  // 1 강의장 당 너비
+                    hourHeight: 60  // 1 시간 당 높이
+                };
+
+                // Listeners
                 this.onDataLoaded = null;
                 this.onViewUpdated = null;
+                this.onModeChanged = null;
             }
 
-            // JSON 데이터 로드 및 초기 레이아웃 계산
             loadData(jsonData) {
                 this.rawDTOs = jsonData.map(d => new ClassDTO(d));
                 this.rooms = [...new Set(this.rawDTOs.map(d => d.room))].sort();
-                
-                // 초기 레이아웃 계산 (Auto Layout)
-                this._calculateInitialLayout();
 
-                if(this.onDataLoaded) this.onDataLoaded();
+                // 초기 로드는 항상 % 모드로 계산 (기본값)
+                this.mode = 'percent';
+                this._calculateInitialPercentLayout();
+
+                if (this.onDataLoaded) this.onDataLoaded();
             }
 
-            // 초기 자동 배치 로직 (이전 코드의 LayoutService 역할)
-            _calculateInitialLayout() {
+            // 모드 전환 로직 (핵심)
+            toggleMode() {
+                const prevMode = this.mode;
+                this.mode = (prevMode === 'percent') ? 'pixel' : 'percent';
+
+                // 좌표 변환 수행
+                this._convertCoordinates(prevMode, this.mode);
+
+                if (this.onModeChanged) this.onModeChanged(this.mode);
+                if (this.onViewUpdated) this.onViewUpdated();
+            }
+
+            // 좌표 변환: 기존 편집된 위치를 최대한 보존하며 단위 변경
+            _convertCoordinates(from, to) {
+                // 변환 기준 치수 계산
+                const totalHours = this.config.end - this.config.start;
+                const totalHeightPx = totalHours * this.pxSettings.hourHeight;
+                const totalWidthPx = this.rooms.length * this.pxSettings.colWidth;
+
+                this.viewDTOs.forEach(dto => {
+                    if (from === 'percent' && to === 'pixel') {
+                        // % -> px
+                        dto.rect.x = (dto.rect.x / 100) * totalWidthPx;
+                        dto.rect.y = (dto.rect.y / 100) * totalHeightPx;
+                        dto.rect.w = (dto.rect.w / 100) * totalWidthPx;
+                        dto.rect.h = (dto.rect.h / 100) * totalHeightPx;
+                    } else if (from === 'pixel' && to === 'percent') {
+                        // px -> %
+                        dto.rect.x = (dto.rect.x / totalWidthPx) * 100;
+                        dto.rect.y = (dto.rect.y / totalHeightPx) * 100;
+                        dto.rect.w = (dto.rect.w / totalWidthPx) * 100;
+                        dto.rect.h = (dto.rect.h / totalHeightPx) * 100;
+                    }
+                });
+            }
+
+            // 초기 자동 배치 (% 기준)
+            _calculateInitialPercentLayout() {
                 this.viewDTOs = [];
                 const totalH = this.config.end - this.config.start;
                 const colW = 100 / this.rooms.length;
 
-                // 그룹핑 로직
                 const grouped = this._groupItems();
 
                 grouped.forEach(group => {
-                    const item = group.items[0]; // Representative
+                    const item = group.items[0];
                     const roomIdx = this.rooms.indexOf(item.room);
-                    
-                    // 기본 계산 (Auto)
+
                     const x = roomIdx * colW;
                     const y = ((item.startH - this.config.start) / totalH) * 100;
                     const w = colW;
                     const h = ((item.endH - item.startH) / totalH) * 100;
-                    
-                    // 텍스트 병합
-                    const days = this._mergeDays(group.items);
 
-                    // ViewDTO 생성
-                    const viewDTO = new ViewDTO({x, y, w, h}, item, days);
-                    this.viewDTOs.push(viewDTO);
+                    const days = this._mergeDays(group.items);
+                    this.viewDTOs.push(new ViewDTO({ x, y, w, h }, item, days));
                 });
             }
 
             updateCardRect(dto, newRect) {
                 dto.rect = { ...newRect };
-                if(this.onViewUpdated) this.onViewUpdated();
+                if (this.onViewUpdated) this.onViewUpdated();
             }
 
-            // [Helper] 그룹핑 (Same as before)
+            updateCardText(dto, type, value) {
+                dto.customText[type] = value;
+                if (this.onViewUpdated) this.onViewUpdated();
+            }
+
+            // Helpers
             _groupItems() {
                 const map = new Map();
                 this.rawDTOs.forEach(d => {
                     const key = `${d.subject}_${d.instructor}_${d.startH}_${d.room}`;
-                    if(!map.has(key)) map.set(key, { items: [] });
+                    if (!map.has(key)) map.set(key, { items: [] });
                     map.get(key).items.push(d);
                 });
                 return Array.from(map.values());
             }
-
             _mergeDays(items) {
                 const daysSet = new Set(items.map(i => i.days));
                 const hasMWF = [...daysSet].some(d => d.includes('월') && d.includes('수'));
                 const hasTT = [...daysSet].some(d => d.includes('화') && d.includes('목'));
-                if(hasMWF && hasTT) return "월~금 (매일)";
+                if (hasMWF && hasTT) return "월~금 (매일)";
                 return [...daysSet].join(", ");
+            }
+
+            // Px 모드일 때 캔버스 전체 크기 계산
+            getCanvasDimensions() {
+                if (this.mode === 'percent') return { w: '100%', h: '100%' };
+                return {
+                    w: (this.rooms.length * this.pxSettings.colWidth) + 'px',
+                    h: ((this.config.end - this.config.start) * this.pxSettings.hourHeight) + 'px'
+                };
             }
         }
 
         /**
          * =======================================================
-         * [VIEW] Editor UI Rendering
+         * [VIEW] Editor UI
          * =======================================================
          */
         class EditorView {
@@ -275,79 +521,120 @@
                     headers: document.getElementById('viewHeaders'),
                     gridLines: document.getElementById('viewGridLines'),
                     cardLayer: document.getElementById('viewCardLayer'),
+                    gridCanvas: document.getElementById('gridCanvas'),
+
                     // Inputs
                     inpLeft: document.getElementById('inpLeft'),
                     inpTop: document.getElementById('inpTop'),
                     inpWidth: document.getElementById('inpWidth'),
                     inpHeight: document.getElementById('inpHeight'),
-                    info: document.getElementById('selectedCardInfo')
+
+                    inpSubject: document.getElementById('inpSubject'),
+                    inpInstructor: document.getElementById('inpInstructor'),
+
+                    info: document.getElementById('selectedCardInfo'),
+                    unitLabel: document.getElementById('unitLabel'),
+                    modeIndicator: document.getElementById('modeIndicator'),
+                    btnToggle: document.getElementById('btnToggleMode')
                 };
-                
                 this.selectedCardEl = null;
             }
 
-            renderStage(rooms, config) {
-                // 1. Clear
+            updateModeUI(mode) {
+                const isPx = mode === 'pixel';
+                this.els.unitLabel.textContent = isPx ? 'px' : '%';
+                this.els.modeIndicator.textContent = isPx ? 'Mode: Pixel (px)' : 'Mode: Percent (%)';
+                this.els.btnToggle.textContent = isPx ? 'Switch to Percent (%) Mode' : 'Switch to Pixel (px) Mode';
+
+                // Input Step 조정
+                const inputs = [this.els.inpLeft, this.els.inpTop, this.els.inpWidth, this.els.inpHeight];
+                inputs.forEach(inp => inp.step = isPx ? 1 : 0.1);
+            }
+
+            renderStage(model) {
+                const config = model.config;
+                const rooms = model.rooms;
+                const dim = model.getCanvasDimensions();
+
+                // 캔버스 크기 조정
+                this.els.gridCanvas.style.width = dim.w;
+                this.els.gridCanvas.style.height = dim.h;
+                this.els.cardLayer.style.height = dim.h; // 중요: 높이 동기화
+
+                // Clear
                 this.els.timeCol.innerHTML = '';
                 this.els.headers.innerHTML = '';
                 this.els.gridLines.innerHTML = '';
-                this.els.cardLayer.innerHTML = '';
 
-                // 2. Background Grid
+                // Grid Rendering
+                const isPx = model.mode === 'pixel';
                 const totalH = config.end - config.start;
-                // Time Labels & H-Lines
-                for(let h=config.start; h<=config.end; h++) {
-                    const top = ((h-config.start)/totalH) * 100;
+
+                // 1. Time Column
+                for (let h = config.start; h <= config.end; h++) {
+                    // Position 계산: Px모드면 픽셀값, 아니면 %값
+                    let posVal = isPx
+                        ? (h - config.start) * model.pxSettings.hourHeight + "px"
+                        : ((h - config.start) / totalH) * 100 + "%";
+
                     const lbl = document.createElement('div');
                     lbl.className = 'time-label';
                     lbl.textContent = `${h}:00`;
-                    lbl.style.top = `${top}%`;
+                    lbl.style.top = posVal;
                     this.els.timeCol.appendChild(lbl);
 
-                    if(h !== config.end) {
+                    if (h !== config.end) {
                         const line = document.createElement('div');
                         line.className = 'h-line';
-                        line.style.top = `${top}%`;
+                        line.style.top = posVal;
                         this.els.gridLines.appendChild(line);
                     }
                 }
-                // Room Headers & V-Lines
+
+                // 2. Room Headers
                 rooms.forEach((room, i) => {
                     const hd = document.createElement('div');
                     hd.className = 'room-header';
                     hd.textContent = room;
                     this.els.headers.appendChild(hd);
 
-                    if(i > 0) {
+                    if (i > 0) {
                         const vl = document.createElement('div');
                         vl.className = 'v-line';
-                        vl.style.left = `${(i/rooms.length)*100}%`;
+                        // Position 계산
+                        let leftVal = isPx
+                            ? i * model.pxSettings.colWidth + "px"
+                            : (i / rooms.length) * 100 + "%";
+
+                        vl.style.left = leftVal;
                         this.els.gridLines.appendChild(vl);
                     }
                 });
             }
 
-            renderCards(viewDTOs, onCardClick) {
-                this.els.cardLayer.innerHTML = ''; // Re-render
-                
-                viewDTOs.forEach(dto => {
+            renderCards(model, onCardClick) {
+                this.els.cardLayer.innerHTML = '';
+                const unit = model.mode === 'pixel' ? 'px' : '%';
+
+                model.viewDTOs.forEach(dto => {
                     const el = document.createElement('div');
                     el.className = `class-card cat-${dto.core.category}`;
-                    
-                    // Apply Absolute Position
-                    el.style.left = `${dto.rect.x}%`;
-                    el.style.top = `${dto.rect.y}%`;
-                    el.style.width = `${dto.rect.w}%`;
-                    el.style.height = `${dto.rect.h}%`;
-                    
-                    // Content
-                    el.innerHTML = `
-                        <div style="font-weight:800; margin-bottom:2px;">${dto.core.subject}</div>
-                        <div style="opacity:0.9;">${dto.core.instructor}</div>
-                        <div style="font-size:0.7rem; margin-top:2px;">${dto.text.days}</div>
-                    `;
 
-                    // Interaction
+                    el.style.left = dto.rect.x + unit;
+                    el.style.top = dto.rect.y + unit;
+                    el.style.width = dto.rect.w + unit;
+                    el.style.height = dto.rect.h + unit;
+
+                    // 텍스트 표시 우선순위: Custom -> Default
+                    const subject = dto.customText.subject || dto.core.subject;
+                    const instructor = dto.customText.instructor || dto.core.instructor;
+
+                    el.innerHTML = `
+                            <div style="font-weight:800; margin-bottom:2px;">${subject}</div>
+                            <div style="opacity:0.9;">${instructor}</div>
+                            <div style="font-size:0.7rem; margin-top:2px;">${dto.defaultText.days}</div>
+                        `;
+
                     el.onclick = (e) => {
                         e.stopPropagation();
                         this._selectCard(el, dto);
@@ -359,23 +646,29 @@
             }
 
             _selectCard(el, dto) {
-                // UI Highlight
-                if(this.selectedCardEl) this.selectedCardEl.classList.remove('selected');
+                if (this.selectedCardEl) this.selectedCardEl.classList.remove('selected');
                 el.classList.add('selected');
                 this.selectedCardEl = el;
 
-                // Bind to Inputs
-                this.els.info.innerHTML = `Selected: <b>${dto.core.subject}</b> (${dto.core.instructor})`;
+                this.els.info.innerHTML = `Selected: <b>${dto.core.subject}</b>`;
+
+                // 좌표 바인딩
                 this.els.inpLeft.value = parseFloat(dto.rect.x.toFixed(2));
                 this.els.inpTop.value = parseFloat(dto.rect.y.toFixed(2));
                 this.els.inpWidth.value = parseFloat(dto.rect.w.toFixed(2));
                 this.els.inpHeight.value = parseFloat(dto.rect.h.toFixed(2));
+
+                // 텍스트 바인딩
+                this.els.inpSubject.value = dto.customText.subject || ''; // 비어있으면 원본 안보여주고 공란 (override 의도)
+                this.els.inpSubject.placeholder = dto.core.subject; // placeholder로 원본 표시
+                this.els.inpInstructor.value = dto.customText.instructor || '';
+                this.els.inpInstructor.placeholder = dto.core.instructor;
             }
         }
 
         /**
          * =======================================================
-         * [CONTROLLER] Logic & Event Binding
+         * [CONTROLLER] Logic
          * =======================================================
          */
         class Controller {
@@ -383,98 +676,99 @@
                 this.model = model;
                 this.view = view;
                 this.currentSelectedDTO = null;
-
                 this._initEvents();
             }
 
             _initEvents() {
-                // 1. JSON File Upload
+                // 1. Data Load
                 document.getElementById('jsonFileInput').addEventListener('change', (e) => {
                     const file = e.target.files[0];
-                    if(!file) return;
-
+                    if (!file) return;
                     const reader = new FileReader();
                     reader.onload = (evt) => {
                         try {
-                            // Extract JSON from file (handle both raw JSON and .js variable)
                             let content = evt.target.result;
-                            if(content.includes('=')) content = content.split('=')[1]; // remove 'const X ='
-                            if(content.trim().endsWith(';')) content = content.trim().slice(0, -1);
-                            
-                            const data = JSON.parse(content);
-                            this.model.loadData(data);
-                        } catch(err) {
-                            alert("JSON Parsing Failed: " + err.message);
-                        }
+                            if (content.includes('=')) content = content.split('=')[1];
+                            if (content.trim().endsWith(';')) content = content.trim().slice(0, -1);
+                            this.model.loadData(JSON.parse(content));
+                        } catch (err) { alert("Parsing Error"); }
                     };
                     reader.readAsText(file);
                 });
 
-                // 2. Model Callbacks
-                this.model.onDataLoaded = () => {
-                    this.view.renderStage(this.model.rooms, this.model.config);
-                    this.view.renderCards(this.model.viewDTOs, (dto) => this.currentSelectedDTO = dto);
+                // 2. Mode Toggle
+                document.getElementById('btnToggleMode').addEventListener('click', () => {
+                    this.model.toggleMode();
+                });
+
+                // 3. Model Listeners
+                this.model.onDataLoaded = () => this._refreshAll();
+                this.model.onModeChanged = (mode) => {
+                    this.view.updateModeUI(mode);
+                    this._refreshAll(); // 모드 바뀌면 그리드 다시 그려야 함
                 };
-                
                 this.model.onViewUpdated = () => {
-                    // Re-render cards only (keep selection logic if needed, but for now simple re-render)
-                    // Optimization: Just update DOM style? For simplicity, re-render all to ensure sync.
-                    this.view.renderCards(this.model.viewDTOs, (dto) => {
+                    this.view.renderCards(this.model, (dto) => {
                         this.currentSelectedDTO = dto;
-                        // Reselect logic needed here ideally, but skip for basic prototype
+                        // 선택 상태 유지 로직은 복잡해지므로 생략, 다시 클릭 필요
                     });
                 };
 
-                // 3. Input Changes (Real-time Edit)
-                const inputs = ['inpLeft', 'inpTop', 'inpWidth', 'inpHeight'];
-                inputs.forEach(id => {
-                    document.getElementById(id).addEventListener('input', () => {
-                        if(!this.currentSelectedDTO) return;
-                        
-                        const newRect = {
-                            x: parseFloat(document.getElementById('inpLeft').value),
-                            y: parseFloat(document.getElementById('inpTop').value),
-                            w: parseFloat(document.getElementById('inpWidth').value),
-                            h: parseFloat(document.getElementById('inpHeight').value)
-                        };
-                        
-                        // Update Model (Model triggers View update)
-                        // To prevent full re-render flickering, we can just update DOM here
-                        // But let's stick to MVC flow -> Update Model -> Render
-                        
-                        // Optimization: Direct DOM Manipulation for smooth editing
-                        if(this.view.selectedCardEl) {
-                            this.view.selectedCardEl.style.left = newRect.x + "%";
-                            this.view.selectedCardEl.style.top = newRect.y + "%";
-                            this.view.selectedCardEl.style.width = newRect.w + "%";
-                            this.view.selectedCardEl.style.height = newRect.h + "%";
+                // 4. Input Bindings (Coordinates)
+                ['inpLeft', 'inpTop', 'inpWidth', 'inpHeight'].forEach(id => {
+                    document.getElementById(id).addEventListener('input', (e) => {
+                        if (!this.currentSelectedDTO) return;
+                        const val = parseFloat(e.target.value);
+                        if (isNaN(val)) return;
+
+                        const rect = { ...this.currentSelectedDTO.rect };
+                        if (id === 'inpLeft') rect.x = val;
+                        if (id === 'inpTop') rect.y = val;
+                        if (id === 'inpWidth') rect.w = val;
+                        if (id === 'inpHeight') rect.h = val;
+
+                        // UI 즉시 반영 (Performance)
+                        if (this.view.selectedCardEl) {
+                            const unit = this.model.mode === 'pixel' ? 'px' : '%';
+                            if (id === 'inpLeft') this.view.selectedCardEl.style.left = val + unit;
+                            if (id === 'inpTop') this.view.selectedCardEl.style.top = val + unit;
+                            if (id === 'inpWidth') this.view.selectedCardEl.style.width = val + unit;
+                            if (id === 'inpHeight') this.view.selectedCardEl.style.height = val + unit;
                         }
-                        
-                        // Update data silently
-                        this.currentSelectedDTO.rect = newRect; 
+                        // Data Update
+                        this.currentSelectedDTO.rect = rect;
                     });
                 });
 
-                // 4. Download HTML
-                document.getElementById('btnDownload').addEventListener('click', () => {
-                    this._downloadHTML();
+                // 5. Input Bindings (Text)
+                document.getElementById('inpSubject').addEventListener('input', (e) => {
+                    if (!this.currentSelectedDTO) return;
+                    this.model.updateCardText(this.currentSelectedDTO, 'subject', e.target.value);
                 });
+                document.getElementById('inpInstructor').addEventListener('input', (e) => {
+                    if (!this.currentSelectedDTO) return;
+                    this.model.updateCardText(this.currentSelectedDTO, 'instructor', e.target.value);
+                });
+
+                // 6. Download
+                document.getElementById('btnDownload').addEventListener('click', () => this._downloadHTML());
+            }
+
+            _refreshAll() {
+                this.view.renderStage(this.model);
+                this.view.renderCards(this.model, (dto) => this.currentSelectedDTO = dto);
             }
 
             _downloadHTML() {
-                if(this.model.viewDTOs.length === 0) {
-                    alert("No data to download.");
-                    return;
-                }
+                if (this.model.viewDTOs.length === 0) { alert("No data"); return; }
 
-                // Serialize Current State (With edited Positions)
-                // We export the ViewDTOs directly, as they contain the final absolute layout.
-                const exportData = JSON.stringify(this.model.viewDTOs, null, 2);
+                const exportData = JSON.stringify(this.model.viewDTOs);
                 const roomsData = JSON.stringify(this.model.rooms);
-                
-                const htmlContent = this._generateHTMLTemplate(exportData, roomsData);
-                
-                // Create Blob & Download
+                const mode = this.model.mode; // 'percent' or 'pixel'
+
+                // 템플릿 생성 시 현재 모드 정보 주입
+                const htmlContent = this._generateHTMLTemplate(exportData, roomsData, mode);
+
                 const blob = new Blob([htmlContent], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -485,111 +779,126 @@
                 document.body.removeChild(a);
             }
 
-            // HTML Generator Template (The "Viewer" Code)
-            _generateHTMLTemplate(dataJson, roomsJson) {
+            _generateHTMLTemplate(dataJson, roomsJson, mode) {
+                const isPx = mode === 'pixel';
+                const unit = isPx ? 'px' : '%';
+                // Px모드일 경우 뷰어에서도 스크롤이 필요하므로 CSS 조정
+                const containerStyle = isPx ? 'overflow: auto;' : 'overflow: hidden;';
+                const canvasStyle = isPx
+                    ? `width: ${this.model.getCanvasDimensions().w}; height: ${this.model.getCanvasDimensions().h};`
+                    : 'width: 100%; height: 100%;';
+
                 return `<!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Academy Time Table (Final View)</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
-        body { background-color: #1e272e; color: #f5f6fa; width: 100vw; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-        
-        .header { height: 60px; display: flex; align-items: center; justify-content: center; background: #2d3436; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 10; }
-        .header h1 { font-size: 1.5rem; background: linear-gradient(to right, #ff7675, #74b9ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Timetable Viewer (${mode})</title>
+        <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
+            body { background-color: #1e272e; color: #f5f6fa; width: 100vw; height: 100vh; display: flex; flex-direction: column; }
+            .header { height: 60px; display: flex; align-items: center; justify-content: center; background: #2d3436; flex-shrink: 0; }
+            .header h1 { font-size: 1.5rem; color: #74b9ff; }
 
-        .stage { flex: 1; position: relative; display: flex; }
-        .time-col { width: 60px; border-right: 1px solid rgba(255,255,255,0.1); background: #222f3e; position: relative; }
-        .grid-canvas { flex: 1; position: relative; }
-        
-        .time-label { position: absolute; right: 5px; font-size: 0.75rem; color: #b2bec3; transform: translateY(-50%); }
-        .room-headers { display: flex; height: 40px; border-bottom: 1px solid rgba(255,255,255,0.1); position: absolute; width: 100%; top:0; background: #2d3436; z-index: 5; }
-        .room-header { flex: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.1); font-weight: bold; font-size: 0.9rem; }
-        
-        .grid-lines { position: absolute; top: 40px; bottom: 0; left: 0; right: 0; pointer-events: none; }
-        .h-line { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(255,255,255,0.05); }
-        .v-line { position: absolute; top: 0; bottom: 0; border-right: 1px solid rgba(255,255,255,0.05); }
+            .stage-wrap { flex: 1; position: relative; display: flex; ${containerStyle} }
+            .time-col { width: 60px; background: #222f3e; border-right: 1px solid rgba(255,255,255,0.1); position: sticky; left: 0; z-index: 50; flex-shrink: 0; }
 
-        .card-container { position: absolute; top: 40px; bottom: 0; left: 0; right: 0; }
-        .class-card {
-            position: absolute; border-radius: 6px; padding: 5px;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            text-align: center; color: white; font-size: 0.8rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            transition: transform 0.2s; cursor: pointer;
-            overflow: hidden;
-        }
-        .class-card:hover { transform: scale(1.05); z-index: 100; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
-        
-        .cat-art-adv { background: #d63031; } .cat-prog-adv { background: #0984e3; }
-        .cat-plan-adv { background: #f1c40f; color: #2d3436; } .cat-graphic { background: #6c5ce7; }
-        .cat-webtoon { background: #e17055; } .cat-kdigital { background: #d35400; }
-        .cat-default { background: #636e72; }
-    </style>
+            /* Dynamic Canvas Size */
+            .grid-canvas { position: relative; ${canvasStyle} }
+
+            .time-label { position: absolute; right: 5px; font-size: 0.75rem; color: #b2bec3; transform: translateY(-50%); }
+            .room-headers { display: flex; height: 40px; border-bottom: 1px solid rgba(255,255,255,0.1); position: absolute; top: 0; width: 100%; background: #2d3436; z-index: 40; }
+            .room-header { flex: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.1); font-weight: bold; font-size: 0.9rem; }
+            .grid-lines { position: absolute; top: 40px; bottom: 0; left: 0; right: 0; pointer-events: none; }
+            .h-line { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(255,255,255,0.05); }
+            .v-line { position: absolute; top: 0; bottom: 0; border-right: 1px solid rgba(255,255,255,0.05); }
+
+            .class-card {
+                position: absolute; border-radius: 6px; padding: 5px;
+                display: flex; flex-direction: column; align-items: center; justify-content: center;
+                text-align: center; color: white; font-size: 0.8rem;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.3); overflow: hidden;
+                transition: transform 0.2s; cursor: pointer;
+            }
+            .class-card:hover { transform: scale(1.05); z-index: 100; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+
+            /* Categories */
+            .cat-art-adv { background: #d63031; } .cat-prog-adv { background: #0984e3; }
+            .cat-plan-adv { background: #f1c40f; color: #2d3436; } .cat-graphic { background: #6c5ce7; }
+            .cat-webtoon { background: #e17055; } .cat-kdigital { background: #d35400; }
+            .cat-default { background: #636e72; }
+        </style>
 </head>
 <body>
-    <div class="header"><h1>ACADEMY TIMETABLE</h1></div>
-    <div class="stage">
-        <div class="time-col" id="tCol"></div>
-        <div class="grid-canvas">
-            <div class="room-headers" id="rHead"></div>
-            <div class="grid-lines" id="gLine"></div>
-            <div class="card-container" id="cLayer"></div>
+        <div class="header"><h1>ACADEMY TIMETABLE</h1></div>
+        <div class="stage-wrap">
+            <div class="time-col" id="tCol"></div>
+            <div class="grid-canvas">
+                <div class="room-headers" id="rHead"></div>
+                <div class="grid-lines" id="gLine"></div>
+                <div id="cLayer"></div>
+            </div>
         </div>
-    </div>
+        <script>
+            const DATA = ${dataJson};
+            const ROOMS = ${roomsJson};
+            const CONFIG = { start: 9, end: 22 };
+            const UNIT = '${unit}';
+            const IS_PX = ${isPx};
 
-    <script>
-        // 1. Injected Data (Fixed Snapshot)
-        const ROOMS = ${roomsJson};
-        const DATA = ${dataJson};
-        const CONFIG = { start: 9, end: 22 };
+            // Px모드용 설정 (뷰어 렌더링용)
+            const PX_SET = { colW: 150, hourH: 60 };
 
-        // 2. Simple Render Logic
-        document.addEventListener('DOMContentLoaded', () => {
-            const tCol = document.getElementById('tCol');
-            const rHead = document.getElementById('rHead');
-            const gLine = document.getElementById('gLine');
-            const cLayer = document.getElementById('cLayer');
+            document.addEventListener('DOMContentLoaded', () => {
+                const tCol = document.getElementById('tCol');
+                const rHead = document.getElementById('rHead');
+                const gLine = document.getElementById('gLine');
+                const cLayer = document.getElementById('cLayer');
+                const totalH = CONFIG.end - CONFIG.start;
 
-            // Draw Background
-            const totalH = CONFIG.end - CONFIG.start;
-            for(let h=CONFIG.start; h<=CONFIG.end; h++) {
-                const top = ((h-CONFIG.start)/totalH)*100;
-                // Label
-                const l = document.createElement('div'); l.className='time-label'; l.innerText = h+":00"; l.style.top=top+"%"; tCol.appendChild(l);
-                // Line
-                if(h !== CONFIG.end){
-                    const hl = document.createElement('div'); hl.className='h-line'; hl.style.top=top+"%"; gLine.appendChild(hl);
+                // 1. Grid Render
+                for(let h=CONFIG.start; h<=CONFIG.end; h++) {
+                    let pos = IS_PX
+                        ? (h - CONFIG.start) * PX_SET.hourH + 'px'
+                        : ((h - CONFIG.start) / totalH) * 100 + '%';
+
+                    const l = document.createElement('div'); l.className='time-label'; l.innerText = h+":00"; l.style.top=pos; tCol.appendChild(l);
+                    if(h !== CONFIG.end){
+                        const hl = document.createElement('div'); hl.className='h-line'; hl.style.top=pos; gLine.appendChild(hl);
+                    }
                 }
-            }
-            ROOMS.forEach((r, i) => {
-                const rh = document.createElement('div'); rh.className='room-header'; rh.innerText=r; rHead.appendChild(rh);
-                if(i>0) {
-                    const vl = document.createElement('div'); vl.className='v-line'; vl.style.left=(i/ROOMS.length)*100+"%"; gLine.appendChild(vl);
-                }
-            });
+                ROOMS.forEach((r, i) => {
+                    const rh = document.createElement('div'); rh.className='room-header'; rh.innerText=r; rHead.appendChild(rh);
+                    if(i>0) {
+                        const vl = document.createElement('div'); vl.className='v-line';
+                        let left = IS_PX ? i * PX_SET.colW + 'px' : (i/ROOMS.length)*100 + '%';
+                        vl.style.left=left; gLine.appendChild(vl);
+                    }
+                });
 
-            // Draw Cards (Using Absolute Coords from Data)
-            DATA.forEach(dto => {
-                const el = document.createElement('div');
-                el.className = 'class-card cat-' + dto.core.category;
-                el.style.left = dto.rect.x + "%";
-                el.style.top = dto.rect.y + "%";
-                el.style.width = dto.rect.w + "%";
-                el.style.height = dto.rect.h + "%";
-                el.innerHTML = "<b>" + dto.core.subject + "</b><br><span style='font-size:0.7em; opacity:0.8'>" + dto.core.instructor + "</span><br><span style='font-size:0.65em'>" + dto.text.days + "</span>";
-                cLayer.appendChild(el);
+                // 2. Card Render
+                DATA.forEach(dto => {
+                    const el = document.createElement('div');
+                    el.className = 'class-card cat-' + dto.core.category;
+                    el.style.left = dto.rect.x + UNIT;
+                    el.style.top = dto.rect.y + UNIT;
+                    el.style.width = dto.rect.w + UNIT;
+                    el.style.height = dto.rect.h + UNIT;
+
+                    // Custom Text Logic
+                    const subject = dto.customText.subject || dto.core.subject;
+                    const instructor = dto.customText.instructor || dto.core.instructor;
+
+                    el.innerHTML = "<b>" + subject + "</b><br><span style='font-size:0.9em; opacity:0.8'>" + instructor + "</span><br><span style='font-size:0.8em'>" + dto.defaultText.days + "</span>";
+                    cLayer.appendChild(el);
+                });
             });
-        });
-    <\/script>
+        <\/script>
 </body>
 </html>`;
             }
         }
 
-        // Init App
         const appModel = new AppModel();
         const appView = new EditorView();
         const appController = new Controller(appModel, appView);
