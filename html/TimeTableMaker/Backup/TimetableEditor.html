@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>SBS 시간표 시스템 마스터 에디터</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* 에디터 UI 레이아웃 */
+        :root { --panel-bg: #2d3436; --accent: #feca57; }
+        body { display: flex; margin: 0; background: #1e272e; color: #fff; font-family: 'Pretendard', sans-serif; }
+        
+        /* 1. 컨트롤 패널 (좌측) */
+        #editor-sidebar {
+            width: 400px; height: 100vh; background: var(--panel-bg);
+            border-right: 2px solid #444; overflow-y: auto; padding: 20px; box-sizing: border-box;
+        }
+
+        /* 2. 미리보기 영역 (우측) */
+        #preview-pane { flex: 1; height: 100vh; overflow: auto; padding: 40px; position: relative; }
+
+        .config-section { background: #353b48; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .config-section h3 { margin-top: 0; color: var(--accent); font-size: 16px; border-bottom: 1px solid #555; padding-bottom: 8px; }
+        
+        .field { margin-bottom: 12px; }
+        .field label { display: block; font-size: 12px; color: #aaa; margin-bottom: 4px; }
+        .field input, .field select { width: 100%; padding: 8px; background: #1e272e; border: 1px solid #444; color: #fff; border-radius: 4px; }
+        
+        .btn-group { display: flex; gap: 8px; margin-top: 20px; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-apply { background: var(--accent); color: #2d3436; }
+        .btn-download { background: #2ecc71; color: #fff; }
+        
+        /* 드래그 앤 드롭 느낌을 위한 강조 */
+        .editable-card { cursor: move; transition: outline 0.1s; }
+        .editable-card:hover { outline: 2px dashed var(--accent); }
+        .selected-card { outline: 3px solid var(--accent) !important; z-index: 100; }
+    </style>
+</head>
+<body>
+
+<div id="editor-sidebar">
+    <h2>🛠 시스템 에디터</h2>
+    
+    <div class="config-section">
+        <h3>Global Theme (style.css)</h3>
+        <div class="field">
+            <label>기본 배경색 (--bg-body)</label>
+            <input type="color" id="css-bg-body" oninput="controller.updateCSS('--bg-body', this.value)">
+        </div>
+        <div class="field">
+            <label>헤더 배경색 (--header-bg)</label>
+            <input type="color" id="css-header-bg" oninput="controller.updateCSS('--header-bg', this.value)">
+        </div>
+        <div class="field">
+            <label>카드 기본 폰트 크기 (px)</label>
+            <input type="number" id="css-font-size" value="14" oninput="controller.updateCSS('--card-font-size', this.value + 'px')">
+        </div>
+    </div>
+
+    <div class="config-section" id="data-editor" style="display:none;">
+        <h3>Card Data (data.js)</h3>
+        <input type="hidden" id="data-id">
+        <div class="field">
+            <label>과목명</label>
+            <input type="text" id="data-subject">
+        </div>
+        <div class="field">
+            <label>강사명</label>
+            <input type="text" id="data-instructor">
+        </div>
+        <div class="field">
+            <label>위치 (Room)</label>
+            <select id="data-room">
+                <option value="M">M</option><option value="O">O</option><option value="P">P</option>
+                <option value="L">L</option><option value="N">N</option><option value="Q">Q</option>
+                <option value="R">R</option><option value="S">S</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 5px;">
+            <div class="field">
+                <label>시작(H)</label>
+                <input type="number" id="data-startH" min="9" max="22">
+            </div>
+            <div class="field">
+                <label>종료(H)</label>
+                <input type="number" id="data-endH" min="9" max="22">
+            </div>
+        </div>
+        <button class="btn btn-apply" onclick="controller.saveCardData()">데이터 적용</button>
+    </div>
+
+    <div class="btn-group">
+        <button class="btn btn-download" onclick="controller.downloadFiles()">변경된 파일 저장</button>
+    </div>
+    <p style="font-size: 11px; color: #888; margin-top: 10px;">* 저장 버튼을 누르면 수정된 data.js와 style.css 설정이 포함된 파일이 생성됩니다.</p>
+</div>
+
+<div id="preview-pane">
+    <div class="grid" id="mainGrid">
+        </div>
+</div>
+
+<script src="data.js"></script>
+
+<script>
+/**
+ * MODEL: 데이터와 스타일 상태 관리
+ */
+const model = {
+    lectures: [],
+    cssVars: {
+        '--bg-body': '#1e272e',
+        '--header-bg': '#feca57',
+        '--card-font-size': '14px'
+    },
+    
+    init() {
+        this.lectures = JSON.parse(JSON.stringify(LECTURE_DATA));
+    },
+    
+    updateLecture(id, updatedObj) {
+        const idx = this.lectures.findIndex(l => l.id == id);
+        if (idx !== -1) this.lectures[idx] = { ...this.lectures[idx], ...updatedObj };
+    }
+};
+
+/**
+ * VIEW: 화면 렌더링 및 UI 업데이트
+ */
+const view = {
+    renderGrid() {
+        const grid = document.getElementById('mainGrid');
+        grid.innerHTML = '<div class="cell header">TIME</div>' + 
+            ['M','O','P','L','N','Q','R','S'].map(r => `<div class="cell header">${r}</div>`).join('');
+
+        // 시간축
+        for(let h=9; h<22; h++) {
+            const t = document.createElement('div');
+            t.className = 'cell time-col';
+            t.style.gridRow = h - 9 + 2;
+            t.innerText = `${h}:00`;
+            grid.appendChild(t);
+        }
+
+        // 강의 카드
+        model.lectures.forEach(l => {
+            const cell = document.createElement('div');
+            cell.className = 'cell lecture-cell editable-card';
+            cell.dataset.id = l.id;
+            const roomMap = { 'M':2,'O':3,'P':4,'L':5,'N':6,'Q':7,'R':8,'S':9 };
+            cell.style.gridColumn = roomMap[l.room];
+            cell.style.gridRow = `${l.startH - 9 + 2} / span ${l.endH - l.startH}`;
+            
+            cell.innerHTML = `
+                <div class="class-card bg-${l.category}">
+                    <div class="subject">${l.subject}</div>
+                    <div class="instructor">${l.instructor}</div>
+                </div>`;
+            
+            cell.onclick = () => controller.selectCard(l.id);
+            grid.appendChild(cell);
+        });
+    },
+
+    updateCSS(key, value) {
+        document.documentElement.style.setProperty(key, value);
+    }
+};
+
+/**
+ * CONTROLLER: 이벤트 처리 및 브릿지 역할
+ */
+const controller = {
+    init() {
+        model.init();
+        view.renderGrid();
+    },
+
+    updateCSS(key, value) {
+        model.cssVars[key] = value;
+        view.updateCSS(key, value);
+    },
+
+    selectCard(id) {
+        const data = model.lectures.find(l => l.id == id);
+        document.getElementById('data-editor').style.display = 'block';
+        document.getElementById('data-id').value = data.id;
+        document.getElementById('data-subject').value = data.subject;
+        document.getElementById('data-instructor').value = data.instructor;
+        document.getElementById('data-room').value = data.room;
+        document.getElementById('data-startH').value = data.startH;
+        document.getElementById('data-endH').value = data.endH;
+
+        document.querySelectorAll('.lecture-cell').forEach(el => el.classList.remove('selected-card'));
+        document.querySelector(`[data-id="${id}"]`).classList.add('selected-card');
+    },
+
+    saveCardData() {
+        const id = document.getElementById('data-id').value;
+        const updated = {
+            subject: document.getElementById('data-subject').value,
+            instructor: document.getElementById('data-instructor').value,
+            room: document.getElementById('data-room').value,
+            startH: parseInt(document.getElementById('data-startH').value),
+            endH: parseInt(document.getElementById('data-endH').value)
+        };
+        model.updateLecture(id, updated);
+        view.renderGrid();
+    },
+
+    // 파일 다운로드 로직 (수정된 데이터를 다시 파일 형태로 추출)
+    downloadFiles() {
+        // 1. data.js 내용 생성
+        const dataContent = `const LECTURE_DATA = ${JSON.stringify(model.lectures, null, 2)};`;
+        this.saveToFile(dataContent, 'data.js');
+
+        // 2. 수정된 CSS 변수를 포함한 style_updated.css 가이드 생성
+        let cssContent = "/* 수정된 테마 변수 */\n:root {\n";
+        for (let key in model.cssVars) {
+            cssContent += `  ${key}: ${model.cssVars[key]};\n`;
+        }
+        cssContent += "}\n\n/* 기존 스타일은 유지됨 */";
+        this.saveToFile(cssContent, 'theme_config.css');
+        
+        alert("수정된 data.js와 스타일 설정 파일이 다운로드되었습니다.\n기존 파일에 덮어씌우세요.");
+    },
+
+    saveToFile(content, fileName) {
+        const blob = new Blob([content], { type: 'text/javascript' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        link.click();
+    }
+};
+
+window.onload = () => controller.init();
+</script>
+
+</body>
+</html>

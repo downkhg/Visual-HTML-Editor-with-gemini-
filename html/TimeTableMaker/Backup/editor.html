@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SBS 아카데미 시간표 에디터 V2 (Dev Mode)</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <style>
+        /* --- 에디터 UI 스타일 --- */
+        body { padding-right: 360px; } /* 패널 너비만큼 여백 */
+        
+        #editor-panel {
+            position: fixed;
+            top: 0; right: 0;
+            width: 340px;
+            height: 100vh;
+            background: #2d3436;
+            border-left: 3px solid #0984e3;
+            padding: 15px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            color: #dfe6e9;
+            z-index: 9999;
+            font-family: 'Consolas', 'Monaco', monospace; /* 개발자 친화 폰트 */
+        }
+
+        h3 { border-bottom: 1px solid #636e72; padding-bottom: 8px; margin-top: 20px; color: #74b9ff; font-size: 1rem; }
+        
+        .control-group { margin-bottom: 12px; }
+        .control-group label { display: block; font-size: 0.75rem; color: #b2bec3; margin-bottom: 4px; }
+        
+        /* 다크모드 입력 필드 */
+        input[type="text"], input[type="number"], textarea, select {
+            width: 100%; padding: 8px; 
+            background: #1e272e; border: 1px solid #636e72; 
+            color: #bdc3c7; border-radius: 4px; box-sizing: border-box;
+            font-family: inherit; font-size: 0.85rem;
+        }
+        
+        textarea { height: 150px; line-height: 1.4; resize: vertical; color: #fab1a0; }
+
+        .btn-row { display: flex; gap: 5px; margin-bottom: 10px; }
+        button {
+            flex: 1; padding: 6px; border: none; border-radius: 3px; 
+            cursor: pointer; font-weight: bold; font-size: 0.8rem;
+            transition: 0.2s;
+        }
+        .btn-blue { background: #0984e3; color: white; }
+        .btn-red { background: #d63031; color: white; }
+        .btn-green { background: #00b894; color: white; }
+        .btn-gray { background: #636e72; color: white; }
+        button:hover { filter: brightness(1.2); }
+
+        /* 선택된 셀 시각 효과 */
+        .selected-cell {
+            outline: 3px solid #ff7675 !important;
+            box-shadow: 0 0 15px rgba(255, 118, 117, 0.5);
+            z-index: 100;
+        }
+
+        /* 헬퍼 클래스 */
+        .hidden { display: none; }
+        .code-snippet { font-size: 0.7rem; color: #fdcb6e; margin-top: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar" style="width: 100%; max-width: none; padding: 10px 20px; background: #2d3436; border-bottom: none;">
+        <div style="color: white; font-weight: bold;">TimeTable Editor <span style="color:#0984e3">V2 (Dev Mode)</span></div>
+        <div class="btn-row" style="width: auto; gap: 10px;">
+            <button class="btn-green" onclick="exportHTML()" style="width: 120px;">HTML 저장</button>
+            <button class="btn-red" onclick="resetGrid()" style="width: 80px;">초기화</button>
+        </div>
+    </div>
+
+    <div class="container" id="capture-area">
+        <div class="grid" id="main-grid">
+            </div>
+    </div>
+
+    <aside id="editor-panel">
+        
+        <h3>Grid Structure</h3>
+        <div class="control-group">
+            <label>Rows (교시)</label>
+            <div class="btn-row">
+                <button class="btn-blue" onclick="adjustGrid('row', 1)">+ 행 추가</button>
+                <button class="btn-red" onclick="adjustGrid('row', -1)">- 행 삭제</button>
+            </div>
+        </div>
+        <div class="control-group">
+            <label>Columns (요일/칸)</label>
+            <div class="btn-row">
+                <button class="btn-blue" onclick="adjustGrid('col', 1)">+ 열 추가</button>
+                <button class="btn-red" onclick="adjustGrid('col', -1)">- 열 삭제</button>
+            </div>
+        </div>
+
+        <h3>Global Styles (Variables)</h3>
+        <div class="control-group">
+            <label>Body Background</label>
+            <input type="color" id="global-bg" value="#1e272e" onchange="updateGlobalVar('--bg-body', this.value)" style="height:30px;">
+        </div>
+        <div class="control-group">
+            <label>Font Scale (px)</label>
+            <input type="number" value="16" onchange="document.body.style.fontSize = this.value + 'px'">
+        </div>
+
+        <hr style="border-color: #636e72; margin: 20px 0;">
+
+        <div id="cell-editor" class="hidden">
+            <h3 style="color: #ff7675;">Selected Cell Editor</h3>
+            
+            <div class="btn-row">
+                <div style="flex:1">
+                    <label>BG Color</label>
+                    <input type="text" id="cell-bg-custom" placeholder="#Hex or rgba" onchange="updateCellStyle('backgroundColor', this.value)">
+                </div>
+                <div style="flex:1">
+                    <label>Text Color</label>
+                    <input type="text" id="cell-text-custom" placeholder="#Hex" onchange="updateCellStyle('color', this.value)">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Inner HTML (Source Code)</label>
+                <textarea id="html-source" oninput="updateCellSource()"></textarea>
+                <div class="code-snippet" onclick="insertSnippet('normal')">[Snippet] Normal Card</div>
+                <div class="code-snippet" onclick="insertSnippet('split')">[Snippet] Split (Sat/Sun)</div>
+                <div class="code-snippet" onclick="insertSnippet('grid')">[Snippet] 2x2 Grid</div>
+            </div>
+
+            <div class="control-group">
+                <label>Class List (Toggle)</label>
+                <div id="class-list" style="display: flex; flex-wrap: wrap; gap: 5px;">
+                    </div>
+            </div>
+        </div>
+
+        <div id="no-selection" style="text-align: center; color: #636e72; padding: 50px 0;">
+            Click any cell to edit properties.
+        </div>
+    </aside>
+
+    <script>
+        // --- 설정 ---
+        let totalRows = 14;
+        let totalCols = 8;
+        const grid = document.getElementById('main-grid');
+        let selectedElement = null;
+
+        // --- 초기화 ---
+        function initGrid() {
+            renderGrid();
+        }
+
+        function renderGrid() {
+            // 그리드 레이아웃 스타일 업데이트 (CSS 변수 대신 style 직접 주입)
+            grid.style.gridTemplateColumns = `80px repeat(${totalCols}, minmax(130px, 1fr))`;
+            grid.style.gridTemplateRows = `45px repeat(${totalRows}, 85px)`;
+            
+            grid.innerHTML = '';
+
+            // 1. 헤더 생성 (Time + Columns)
+            const headers = ['Time', '월', '화', '수', '목', '금', '토', '일', '비고', '열9', '열10']; // 예비 이름
+            for(let i=0; i <= totalCols; i++) {
+                const div = document.createElement('div');
+                div.className = 'header';
+                div.innerText = headers[i] || `Col ${i}`;
+                div.contentEditable = true; // 헤더 바로 수정 가능하도록
+                grid.appendChild(div);
+            }
+
+            // 2. 바디 생성
+            for (let r = 1; r <= totalRows; r++) {
+                // 시간축
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'cell time-col';
+                timeDiv.innerHTML = `${r}교시<br>${9+r}:00`;
+                timeDiv.onclick = (e) => selectCell(e, timeDiv); // 시간축도 수정 가능하게
+                grid.appendChild(timeDiv);
+
+                // 데이터 셀
+                for (let c = 1; c <= totalCols; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell lecture-cell';
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+                    cell.onclick = (e) => selectCell(e, cell);
+                    
+                    // 빈 셀로 시작 (스니펫으로 채우기 위해)
+                    cell.innerHTML = ''; 
+                    grid.appendChild(cell);
+                }
+            }
+        }
+
+        // --- 그리드 구조 변경 ---
+        function adjustGrid(type, val) {
+            if(type === 'row') totalRows += val;
+            if(type === 'col') totalCols += val;
+            if(totalRows < 1) totalRows = 1;
+            if(totalCols < 1) totalCols = 1;
+            
+            // 주의: 기존 데이터 유지를 위해 innerHTML 전체 리렌더링은 위험하지만, 
+            // V2에서는 구조 변경 시 일단 리셋되는 방식으로 구현 (복잡도 방지).
+            // 데이터 보존이 필요하면 DOM array를 백업해야 함.
+            if(confirm('구조를 변경하면 내용이 초기화될 수 있습니다. 진행합니까?')) {
+                renderGrid();
+            }
+        }
+
+        // --- 셀 선택 및 에디터 로딩 ---
+        function selectCell(e, el) {
+            e.stopPropagation();
+            if(selectedElement) selectedElement.classList.remove('selected-cell');
+            
+            selectedElement = el;
+            selectedElement.classList.add('selected-cell');
+
+            // UI Show
+            document.getElementById('no-selection').classList.add('hidden');
+            document.getElementById('cell-editor').classList.remove('hidden');
+
+            // 값 불러오기
+            // 1. HTML Source
+            document.getElementById('html-source').value = formatHTML(selectedElement.innerHTML);
+            
+            // 2. Styles
+            document.getElementById('cell-bg-custom').value = selectedElement.style.backgroundColor;
+            document.getElementById('cell-text-custom').value = selectedElement.style.color;
+
+            // 3. Class List Toggle UI 생성
+            renderClassToggler();
+        }
+
+        // --- 편집 기능 ---
+        
+        // HTML 소스 실시간 반영
+        function updateCellSource() {
+            if(!selectedElement) return;
+            selectedElement.innerHTML = document.getElementById('html-source').value;
+        }
+
+        // 스타일 직접 주입
+        function updateCellStyle(prop, val) {
+            if(!selectedElement) return;
+            selectedElement.style[prop] = val;
+        }
+
+        // 전역 변수 수정
+        function updateGlobalVar(name, val) {
+            document.documentElement.style.setProperty(name, val);
+        }
+
+        // 스니펫 주입 (편의 기능)
+        function insertSnippet(type) {
+            const editor = document.getElementById('html-source');
+            let code = '';
+
+            if(type === 'normal') {
+                code = `<div class="subject">C/C++</div>\n<div class="instructor">홍길동</div>\n<div class="date-info">305호</div>`;
+                applyClass('bg-prog'); // 기본값
+            } else if (type === 'split') {
+                code = `<div class="split-container">\n  <div class="split-item sat-only bg-plan">\n    <div class="subject">토요반</div>\n  </div>\n  <div class="split-item sun-only bg-plan-adv">\n    <div class="subject">일요반</div>\n  </div>\n</div>`;
+                // 상위 셀 클래스 초기화
+                selectedElement.className = 'cell lecture-cell'; 
+            } else if (type === 'grid') {
+                code = `<div class="split-container-2x2 count-4">\n  <div class="split-item bg-novel">A</div>\n  <div class="split-item bg-ui">B</div>\n  <div class="split-item bg-webtoon">C</div>\n  <div class="split-item bg-kdigital">D</div>\n</div>`;
+            }
+
+            editor.value = code;
+            updateCellSource();
+        }
+
+        // 클래스 토글러 렌더링
+        function renderClassToggler() {
+            const container = document.getElementById('class-list');
+            container.innerHTML = '';
+            
+            // 토글하고 싶은 주요 클래스 목록
+            const classes = [
+                'bg-plan', 'bg-prog', 'bg-art-basic', 'bg-port', 
+                'bg-graphic', 'bg-webtoon', 'bg-ui', 'bg-kdigital'
+            ];
+
+            classes.forEach(cls => {
+                const btn = document.createElement('button');
+                btn.innerText = cls.replace('bg-', '');
+                btn.style.fontSize = '0.7rem';
+                btn.style.padding = '2px 5px';
+                // 현재 적용 여부 체크
+                if(selectedElement.classList.contains(cls)) {
+                    btn.style.border = '2px solid #00b894';
+                    btn.style.color = '#00b894';
+                } else {
+                    btn.style.border = '1px solid #636e72';
+                    btn.style.color = '#636e72';
+                    btn.style.background = 'transparent';
+                }
+
+                btn.onclick = () => {
+                    selectedElement.classList.toggle(cls);
+                    renderClassToggler(); // 상태 갱신
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function applyClass(cls) {
+            if(!selectedElement) return;
+            // bg- 계열 다 지우고 추가
+            const classes = Array.from(selectedElement.classList);
+            classes.forEach(c => { if(c.startsWith('bg-')) selectedElement.classList.remove(c); });
+            selectedElement.classList.add(cls);
+            renderClassToggler();
+        }
+
+        // HTML 포맷팅 (들여쓰기 등 - 가독성용)
+        function formatHTML(html) {
+            return html.trim().replace(/>\s+</g, '>\n<');
+        }
+
+        // 내보내기
+        function exportHTML() {
+            if(selectedElement) selectedElement.classList.remove('selected-cell');
+            
+            const clone = document.documentElement.cloneNode(true);
+            clone.querySelector('#editor-panel').remove();
+            clone.querySelector('.top-bar').remove();
+            
+            // 에디터용 스타일/스크립트 제거
+            const scripts = clone.querySelectorAll('script');
+            scripts.forEach(s => s.remove());
+            
+            // Grid 스타일 복구 (인라인 -> CSS)
+            // 인라인 스타일이 남아있어도 상관없다면 그대로 둠.
+            
+            const blob = new Blob([clone.outerHTML], {type: 'text/html'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'timetable_full_custom.html';
+            a.click();
+            
+            if(selectedElement) selectedElement.classList.add('selected-cell');
+        }
+
+        function resetGrid() {
+            if(confirm('초기화하시겠습니까?')) initGrid();
+        }
+
+        window.onload = initGrid;
+    </script>
+</body>
+</html>

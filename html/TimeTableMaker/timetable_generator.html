@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timetable Generator & Editor</title>
+    <style>
+        /* ==================== 1. Editor UI Styles ==================== */
+        :root {
+            --bg-color: #1e272e;
+            --panel-bg: #2d3436;
+            --text-color: #f5f6fa;
+            --accent-color: #0984e3;
+            --border-color: rgba(255,255,255,0.1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            width: 100vw; height: 100vh;
+            display: flex; overflow: hidden;
+        }
+
+        /* --- Left Control Panel --- */
+        aside {
+            width: 300px;
+            background: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column;
+            padding: 20px;
+            z-index: 100;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+        }
+
+        aside h2 { font-size: 1.2rem; margin-bottom: 20px; color: var(--accent-color); }
+        
+        .control-group { margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; }
+        .control-group label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: #b2bec3; }
+        
+        input[type="file"] { width: 100%; margin-bottom: 10px; font-size: 0.8rem; }
+        
+        .btn {
+            width: 100%; padding: 10px; border: none; border-radius: 4px;
+            background: var(--accent-color); color: white; font-weight: bold; cursor: pointer;
+            transition: background 0.2s; margin-top: 5px;
+        }
+        .btn:hover { background: #74b9ff; }
+        .btn-success { background: #00b894; }
+        .btn-success:hover { background: #55efc4; }
+
+        .input-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .input-wrap { flex: 1; }
+        input[type="number"] {
+            width: 100%; padding: 8px; background: #1e272e; border: 1px solid #636e72;
+            color: white; border-radius: 4px;
+        }
+
+        #selectedCardInfo { font-size: 0.9rem; color: #dfe6e9; margin-bottom: 10px; min-height: 40px;}
+
+        /* --- Right Preview Stage --- */
+        main { flex: 1; display: flex; flex-direction: column; position: relative; }
+        
+        .header { height: 50px; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--border-color); }
+        .stage-container { flex: 1; position: relative; display: flex; }
+
+        /* --- Timetable Grid Styles (Shared with Viewer) --- */
+        .time-col { width: 60px; border-right: 1px solid var(--border-color); position: relative; background: #222f3e; }
+        .grid-canvas { flex: 1; position: relative; }
+        
+        .time-label { position: absolute; right: 5px; font-size: 0.75rem; color: #b2bec3; transform: translateY(-50%); }
+        .room-headers { display: flex; height: 40px; border-bottom: 1px solid var(--border-color); position: absolute; top: 0; width: 100%; }
+        .room-header { flex: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--border-color); font-size: 0.85rem; font-weight: bold; background: #2d3436; }
+        
+        .grid-lines { position: absolute; top: 40px; bottom: 0; left: 0; right: 0; pointer-events: none; }
+        .h-line { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(255,255,255,0.05); }
+        .v-line { position: absolute; top: 0; bottom: 0; border-right: 1px solid rgba(255,255,255,0.05); }
+
+        .card-layer { position: absolute; top: 40px; bottom: 0; left: 0; right: 0; }
+        
+        .class-card {
+            position: absolute; border-radius: 4px; padding: 5px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; color: white; font-size: 0.75rem;
+            cursor: pointer; overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            border: 2px solid transparent; /* Selection Border */
+            transition: transform 0.1s;
+        }
+        
+        /* Editor Specific: Selected State */
+        .class-card.selected {
+            border-color: #ffeaa7;
+            z-index: 1000 !important;
+            box-shadow: 0 0 15px rgba(255, 234, 167, 0.5);
+            transform: scale(1.02);
+        }
+
+        /* Categories */
+        .cat-art-adv { background: #d63031; } .cat-prog-adv { background: #0984e3; }
+        .cat-plan-adv { background: #f1c40f; color: #2d3436; } .cat-graphic { background: #6c5ce7; }
+        .cat-webtoon { background: #e17055; } .cat-kdigital { background: #d35400; }
+        .cat-default { background: #636e72; }
+
+    </style>
+</head>
+<body>
+
+    <aside>
+        <h2>⚙️ Editor Control</h2>
+
+        <div class="control-group">
+            <label>1. Load JSON Data</label>
+            <input type="file" id="jsonFileInput" accept=".json, .js">
+            <p style="font-size:0.7rem; color:#636e72; margin-top:5px;">* Select a JSON file containing the timetable array.</p>
+        </div>
+
+        <div class="control-group">
+            <label>2. Edit Selected Card</label>
+            <div id="selectedCardInfo">No card selected</div>
+            
+            <div class="input-row">
+                <div class="input-wrap"><label>Left (%)</label><input type="number" id="inpLeft" step="0.1"></div>
+                <div class="input-wrap"><label>Top (%)</label><input type="number" id="inpTop" step="0.1"></div>
+            </div>
+            <div class="input-row">
+                <div class="input-wrap"><label>Width (%)</label><input type="number" id="inpWidth" step="0.1"></div>
+                <div class="input-wrap"><label>Height (%)</label><input type="number" id="inpHeight" step="0.1"></div>
+            </div>
+        </div>
+
+        <div class="control-group" style="border:none;">
+            <label>3. Export</label>
+            <button class="btn btn-success" id="btnDownload">Download 'timetableVeiw.html'</button>
+        </div>
+    </aside>
+
+    <main>
+        <div class="header">
+            <h3>Timetable Preview Stage</h3>
+        </div>
+        <div class="stage-container">
+            <div class="time-col" id="viewTimeCol"></div>
+            <div class="grid-canvas">
+                <div class="room-headers" id="viewHeaders"></div>
+                <div class="grid-lines" id="viewGridLines"></div>
+                <div class="card-layer" id="viewCardLayer"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        /**
+         * =======================================================
+         * [MODEL] Data Definitions & State Management
+         * =======================================================
+         */
+        
+        // 1. Data Structure (DTO)
+        class ClassDTO {
+            constructor(data) {
+                // 기본 데이터 복사
+                this.id = data.id || Date.now();
+                this.subject = data.subject;
+                this.instructor = data.instructor;
+                this.room = data.room;
+                this.days = data.days;
+                this.category = data.category || 'default';
+                this.isBadge = data.isBadge || '';
+                
+                // 시간 정보
+                this.startH = parseInt(data.startH);
+                this.endH = parseInt(data.endH);
+            }
+        }
+
+        // 2. View Data Object (Contains Mutable Layout Info)
+        class ViewDTO {
+            constructor(rect, coreData, mergedDays) {
+                this.rect = rect; // {x, y, w, h} (Percent)
+                this.core = coreData; 
+                this.text = {
+                    days: mergedDays
+                };
+            }
+        }
+
+        // 3. Application State Model
+        class AppModel {
+            constructor() {
+                this.rawDTOs = []; // Loaded ClassDTOs
+                this.viewDTOs = []; // Calculated ViewDTOs (The ones we edit)
+                this.rooms = [];
+                this.config = { start: 9, end: 22 };
+                
+                // Event Listeners
+                this.onDataLoaded = null;
+                this.onViewUpdated = null;
+            }
+
+            // JSON 데이터 로드 및 초기 레이아웃 계산
+            loadData(jsonData) {
+                this.rawDTOs = jsonData.map(d => new ClassDTO(d));
+                this.rooms = [...new Set(this.rawDTOs.map(d => d.room))].sort();
+                
+                // 초기 레이아웃 계산 (Auto Layout)
+                this._calculateInitialLayout();
+
+                if(this.onDataLoaded) this.onDataLoaded();
+            }
+
+            // 초기 자동 배치 로직 (이전 코드의 LayoutService 역할)
+            _calculateInitialLayout() {
+                this.viewDTOs = [];
+                const totalH = this.config.end - this.config.start;
+                const colW = 100 / this.rooms.length;
+
+                // 그룹핑 로직
+                const grouped = this._groupItems();
+
+                grouped.forEach(group => {
+                    const item = group.items[0]; // Representative
+                    const roomIdx = this.rooms.indexOf(item.room);
+                    
+                    // 기본 계산 (Auto)
+                    const x = roomIdx * colW;
+                    const y = ((item.startH - this.config.start) / totalH) * 100;
+                    const w = colW;
+                    const h = ((item.endH - item.startH) / totalH) * 100;
+                    
+                    // 텍스트 병합
+                    const days = this._mergeDays(group.items);
+
+                    // ViewDTO 생성
+                    const viewDTO = new ViewDTO({x, y, w, h}, item, days);
+                    this.viewDTOs.push(viewDTO);
+                });
+            }
+
+            updateCardRect(dto, newRect) {
+                dto.rect = { ...newRect };
+                if(this.onViewUpdated) this.onViewUpdated();
+            }
+
+            // [Helper] 그룹핑 (Same as before)
+            _groupItems() {
+                const map = new Map();
+                this.rawDTOs.forEach(d => {
+                    const key = `${d.subject}_${d.instructor}_${d.startH}_${d.room}`;
+                    if(!map.has(key)) map.set(key, { items: [] });
+                    map.get(key).items.push(d);
+                });
+                return Array.from(map.values());
+            }
+
+            _mergeDays(items) {
+                const daysSet = new Set(items.map(i => i.days));
+                const hasMWF = [...daysSet].some(d => d.includes('월') && d.includes('수'));
+                const hasTT = [...daysSet].some(d => d.includes('화') && d.includes('목'));
+                if(hasMWF && hasTT) return "월~금 (매일)";
+                return [...daysSet].join(", ");
+            }
+        }
+
+        /**
+         * =======================================================
+         * [VIEW] Editor UI Rendering
+         * =======================================================
+         */
+        class EditorView {
+            constructor() {
+                this.els = {
+                    timeCol: document.getElementById('viewTimeCol'),
+                    headers: document.getElementById('viewHeaders'),
+                    gridLines: document.getElementById('viewGridLines'),
+                    cardLayer: document.getElementById('viewCardLayer'),
+                    // Inputs
+                    inpLeft: document.getElementById('inpLeft'),
+                    inpTop: document.getElementById('inpTop'),
+                    inpWidth: document.getElementById('inpWidth'),
+                    inpHeight: document.getElementById('inpHeight'),
+                    info: document.getElementById('selectedCardInfo')
+                };
+                
+                this.selectedCardEl = null;
+            }
+
+            renderStage(rooms, config) {
+                // 1. Clear
+                this.els.timeCol.innerHTML = '';
+                this.els.headers.innerHTML = '';
+                this.els.gridLines.innerHTML = '';
+                this.els.cardLayer.innerHTML = '';
+
+                // 2. Background Grid
+                const totalH = config.end - config.start;
+                // Time Labels & H-Lines
+                for(let h=config.start; h<=config.end; h++) {
+                    const top = ((h-config.start)/totalH) * 100;
+                    const lbl = document.createElement('div');
+                    lbl.className = 'time-label';
+                    lbl.textContent = `${h}:00`;
+                    lbl.style.top = `${top}%`;
+                    this.els.timeCol.appendChild(lbl);
+
+                    if(h !== config.end) {
+                        const line = document.createElement('div');
+                        line.className = 'h-line';
+                        line.style.top = `${top}%`;
+                        this.els.gridLines.appendChild(line);
+                    }
+                }
+                // Room Headers & V-Lines
+                rooms.forEach((room, i) => {
+                    const hd = document.createElement('div');
+                    hd.className = 'room-header';
+                    hd.textContent = room;
+                    this.els.headers.appendChild(hd);
+
+                    if(i > 0) {
+                        const vl = document.createElement('div');
+                        vl.className = 'v-line';
+                        vl.style.left = `${(i/rooms.length)*100}%`;
+                        this.els.gridLines.appendChild(vl);
+                    }
+                });
+            }
+
+            renderCards(viewDTOs, onCardClick) {
+                this.els.cardLayer.innerHTML = ''; // Re-render
+                
+                viewDTOs.forEach(dto => {
+                    const el = document.createElement('div');
+                    el.className = `class-card cat-${dto.core.category}`;
+                    
+                    // Apply Absolute Position
+                    el.style.left = `${dto.rect.x}%`;
+                    el.style.top = `${dto.rect.y}%`;
+                    el.style.width = `${dto.rect.w}%`;
+                    el.style.height = `${dto.rect.h}%`;
+                    
+                    // Content
+                    el.innerHTML = `
+                        <div style="font-weight:800; margin-bottom:2px;">${dto.core.subject}</div>
+                        <div style="opacity:0.9;">${dto.core.instructor}</div>
+                        <div style="font-size:0.7rem; margin-top:2px;">${dto.text.days}</div>
+                    `;
+
+                    // Interaction
+                    el.onclick = (e) => {
+                        e.stopPropagation();
+                        this._selectCard(el, dto);
+                        onCardClick(dto);
+                    };
+
+                    this.els.cardLayer.appendChild(el);
+                });
+            }
+
+            _selectCard(el, dto) {
+                // UI Highlight
+                if(this.selectedCardEl) this.selectedCardEl.classList.remove('selected');
+                el.classList.add('selected');
+                this.selectedCardEl = el;
+
+                // Bind to Inputs
+                this.els.info.innerHTML = `Selected: <b>${dto.core.subject}</b> (${dto.core.instructor})`;
+                this.els.inpLeft.value = parseFloat(dto.rect.x.toFixed(2));
+                this.els.inpTop.value = parseFloat(dto.rect.y.toFixed(2));
+                this.els.inpWidth.value = parseFloat(dto.rect.w.toFixed(2));
+                this.els.inpHeight.value = parseFloat(dto.rect.h.toFixed(2));
+            }
+        }
+
+        /**
+         * =======================================================
+         * [CONTROLLER] Logic & Event Binding
+         * =======================================================
+         */
+        class Controller {
+            constructor(model, view) {
+                this.model = model;
+                this.view = view;
+                this.currentSelectedDTO = null;
+
+                this._initEvents();
+            }
+
+            _initEvents() {
+                // 1. JSON File Upload
+                document.getElementById('jsonFileInput').addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if(!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        try {
+                            // Extract JSON from file (handle both raw JSON and .js variable)
+                            let content = evt.target.result;
+                            if(content.includes('=')) content = content.split('=')[1]; // remove 'const X ='
+                            if(content.trim().endsWith(';')) content = content.trim().slice(0, -1);
+                            
+                            const data = JSON.parse(content);
+                            this.model.loadData(data);
+                        } catch(err) {
+                            alert("JSON Parsing Failed: " + err.message);
+                        }
+                    };
+                    reader.readAsText(file);
+                });
+
+                // 2. Model Callbacks
+                this.model.onDataLoaded = () => {
+                    this.view.renderStage(this.model.rooms, this.model.config);
+                    this.view.renderCards(this.model.viewDTOs, (dto) => this.currentSelectedDTO = dto);
+                };
+                
+                this.model.onViewUpdated = () => {
+                    // Re-render cards only (keep selection logic if needed, but for now simple re-render)
+                    // Optimization: Just update DOM style? For simplicity, re-render all to ensure sync.
+                    this.view.renderCards(this.model.viewDTOs, (dto) => {
+                        this.currentSelectedDTO = dto;
+                        // Reselect logic needed here ideally, but skip for basic prototype
+                    });
+                };
+
+                // 3. Input Changes (Real-time Edit)
+                const inputs = ['inpLeft', 'inpTop', 'inpWidth', 'inpHeight'];
+                inputs.forEach(id => {
+                    document.getElementById(id).addEventListener('input', () => {
+                        if(!this.currentSelectedDTO) return;
+                        
+                        const newRect = {
+                            x: parseFloat(document.getElementById('inpLeft').value),
+                            y: parseFloat(document.getElementById('inpTop').value),
+                            w: parseFloat(document.getElementById('inpWidth').value),
+                            h: parseFloat(document.getElementById('inpHeight').value)
+                        };
+                        
+                        // Update Model (Model triggers View update)
+                        // To prevent full re-render flickering, we can just update DOM here
+                        // But let's stick to MVC flow -> Update Model -> Render
+                        
+                        // Optimization: Direct DOM Manipulation for smooth editing
+                        if(this.view.selectedCardEl) {
+                            this.view.selectedCardEl.style.left = newRect.x + "%";
+                            this.view.selectedCardEl.style.top = newRect.y + "%";
+                            this.view.selectedCardEl.style.width = newRect.w + "%";
+                            this.view.selectedCardEl.style.height = newRect.h + "%";
+                        }
+                        
+                        // Update data silently
+                        this.currentSelectedDTO.rect = newRect; 
+                    });
+                });
+
+                // 4. Download HTML
+                document.getElementById('btnDownload').addEventListener('click', () => {
+                    this._downloadHTML();
+                });
+            }
+
+            _downloadHTML() {
+                if(this.model.viewDTOs.length === 0) {
+                    alert("No data to download.");
+                    return;
+                }
+
+                // Serialize Current State (With edited Positions)
+                // We export the ViewDTOs directly, as they contain the final absolute layout.
+                const exportData = JSON.stringify(this.model.viewDTOs, null, 2);
+                const roomsData = JSON.stringify(this.model.rooms);
+                
+                const htmlContent = this._generateHTMLTemplate(exportData, roomsData);
+                
+                // Create Blob & Download
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'timetableVeiw.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+
+            // HTML Generator Template (The "Viewer" Code)
+            _generateHTMLTemplate(dataJson, roomsJson) {
+                return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academy Time Table (Final View)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
+        body { background-color: #1e272e; color: #f5f6fa; width: 100vw; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        
+        .header { height: 60px; display: flex; align-items: center; justify-content: center; background: #2d3436; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 10; }
+        .header h1 { font-size: 1.5rem; background: linear-gradient(to right, #ff7675, #74b9ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .stage { flex: 1; position: relative; display: flex; }
+        .time-col { width: 60px; border-right: 1px solid rgba(255,255,255,0.1); background: #222f3e; position: relative; }
+        .grid-canvas { flex: 1; position: relative; }
+        
+        .time-label { position: absolute; right: 5px; font-size: 0.75rem; color: #b2bec3; transform: translateY(-50%); }
+        .room-headers { display: flex; height: 40px; border-bottom: 1px solid rgba(255,255,255,0.1); position: absolute; width: 100%; top:0; background: #2d3436; z-index: 5; }
+        .room-header { flex: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.1); font-weight: bold; font-size: 0.9rem; }
+        
+        .grid-lines { position: absolute; top: 40px; bottom: 0; left: 0; right: 0; pointer-events: none; }
+        .h-line { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(255,255,255,0.05); }
+        .v-line { position: absolute; top: 0; bottom: 0; border-right: 1px solid rgba(255,255,255,0.05); }
+
+        .card-container { position: absolute; top: 40px; bottom: 0; left: 0; right: 0; }
+        .class-card {
+            position: absolute; border-radius: 6px; padding: 5px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; color: white; font-size: 0.8rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: transform 0.2s; cursor: pointer;
+            overflow: hidden;
+        }
+        .class-card:hover { transform: scale(1.05); z-index: 100; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        
+        .cat-art-adv { background: #d63031; } .cat-prog-adv { background: #0984e3; }
+        .cat-plan-adv { background: #f1c40f; color: #2d3436; } .cat-graphic { background: #6c5ce7; }
+        .cat-webtoon { background: #e17055; } .cat-kdigital { background: #d35400; }
+        .cat-default { background: #636e72; }
+    </style>
+</head>
+<body>
+    <div class="header"><h1>ACADEMY TIMETABLE</h1></div>
+    <div class="stage">
+        <div class="time-col" id="tCol"></div>
+        <div class="grid-canvas">
+            <div class="room-headers" id="rHead"></div>
+            <div class="grid-lines" id="gLine"></div>
+            <div class="card-container" id="cLayer"></div>
+        </div>
+    </div>
+
+    <script>
+        // 1. Injected Data (Fixed Snapshot)
+        const ROOMS = ${roomsJson};
+        const DATA = ${dataJson};
+        const CONFIG = { start: 9, end: 22 };
+
+        // 2. Simple Render Logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const tCol = document.getElementById('tCol');
+            const rHead = document.getElementById('rHead');
+            const gLine = document.getElementById('gLine');
+            const cLayer = document.getElementById('cLayer');
+
+            // Draw Background
+            const totalH = CONFIG.end - CONFIG.start;
+            for(let h=CONFIG.start; h<=CONFIG.end; h++) {
+                const top = ((h-CONFIG.start)/totalH)*100;
+                // Label
+                const l = document.createElement('div'); l.className='time-label'; l.innerText = h+":00"; l.style.top=top+"%"; tCol.appendChild(l);
+                // Line
+                if(h !== CONFIG.end){
+                    const hl = document.createElement('div'); hl.className='h-line'; hl.style.top=top+"%"; gLine.appendChild(hl);
+                }
+            }
+            ROOMS.forEach((r, i) => {
+                const rh = document.createElement('div'); rh.className='room-header'; rh.innerText=r; rHead.appendChild(rh);
+                if(i>0) {
+                    const vl = document.createElement('div'); vl.className='v-line'; vl.style.left=(i/ROOMS.length)*100+"%"; gLine.appendChild(vl);
+                }
+            });
+
+            // Draw Cards (Using Absolute Coords from Data)
+            DATA.forEach(dto => {
+                const el = document.createElement('div');
+                el.className = 'class-card cat-' + dto.core.category;
+                el.style.left = dto.rect.x + "%";
+                el.style.top = dto.rect.y + "%";
+                el.style.width = dto.rect.w + "%";
+                el.style.height = dto.rect.h + "%";
+                el.innerHTML = "<b>" + dto.core.subject + "</b><br><span style='font-size:0.7em; opacity:0.8'>" + dto.core.instructor + "</span><br><span style='font-size:0.65em'>" + dto.text.days + "</span>";
+                cLayer.appendChild(el);
+            });
+        });
+    <\/script>
+</body>
+</html>`;
+            }
+        }
+
+        // Init App
+        const appModel = new AppModel();
+        const appView = new EditorView();
+        const appController = new Controller(appModel, appView);
+
+    </script>
+</body>
+</html>

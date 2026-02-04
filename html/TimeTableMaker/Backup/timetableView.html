@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SBS 게임 아카데미 시간표</title>
+    
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <link rel="stylesheet" href="style.css"> </head>
+	<script src="common.js"></script>
+<body>
+
+<div class="container">
+    <div class="top-bar">
+        <h1>SBS 게임 학원 주간 시간표</h1>
+        <div class="week-toggle">
+            <button class="week-btn active" onclick="app.setWeek('A')">A주 (1,3주차)</button>
+            <button class="week-btn" onclick="app.setWeek('B')">B주 (2,4주차)</button>
+        </div>
+    </div>
+
+    <div class="grid" id="mainGrid">
+        <div class="cell header">TIME</div>
+        <div class="cell header">M</div>
+        <div class="cell header">O</div>
+        <div class="cell header">P</div>
+        <div class="cell header">L</div>
+        <div class="cell header">N</div>
+        <div class="cell header">Q</div>
+        <div class="cell header">R</div>
+        <div class="cell header">S</div>
+        </div>
+</div>
+
+<script src="data.js"></script>
+
+<script>
+/**
+ * [Model] Lecture DTO
+ */
+class Lecture {
+    constructor(data) {
+        Object.assign(this, data);
+    }
+}
+
+/**
+ * [Model] Schedule DAO
+ */
+const ScheduleDAO = {
+    roomMap: { 'M': 2, 'O': 3, 'P': 4, 'L': 5, 'N': 6, 'Q': 7, 'R': 8, 'S': 9 },
+    list: [],
+    loadData() {
+        if (typeof LECTURE_DATA !== 'undefined') {
+            this.list = LECTURE_DATA.map(d => new Lecture(d));
+        } else {
+            console.error("data.js 파일을 찾을 수 없습니다.");
+        }
+    }
+};
+
+/**
+ * [Controller & View] App Engine
+ */
+const app = {
+    currentWeek: 'A',
+    init() {
+        ScheduleDAO.loadData();
+        this.renderTimeAxis();
+        this.render();
+    },
+    setWeek(w) {
+        this.currentWeek = w;
+        document.querySelectorAll('.week-btn').forEach(b => {
+            b.classList.toggle('active', b.innerText.includes(w));
+        });
+        this.render();
+    },
+    renderTimeAxis() {
+        const grid = document.getElementById('mainGrid');
+        for (let h = 9; h < 22; h++) {
+            const timeCell = document.createElement('div');
+            timeCell.className = 'cell time-col';
+            timeCell.style.gridRow = h - 9 + 2;
+            timeCell.innerText = `${h.toString().padStart(2, '0')}:00`;
+            grid.appendChild(timeCell);
+        }
+    },
+    render() {
+        const grid = document.getElementById('mainGrid');
+        
+        // 1. 기존 요소 제거 (헤더와 시간축 제외)
+        document.querySelectorAll('.lecture-cell, .empty-cell').forEach(el => el.remove());
+
+        // 2. 배경 그리드(빈 셀) 먼저 생성하여 레이아웃 고정 [교정 사항]
+		/*
+		
+        for (let row = 2; row < 15; row++) { // 9시 ~ 22시
+            for (let col = 2; col <= 9; col++) { // M ~ S 강의실
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'cell empty-cell';
+                emptyCell.style.gridRow = row;
+                emptyCell.style.gridColumn = col;
+                grid.appendChild(emptyCell);
+            }
+        }
+		*/
+        const filtered = ScheduleDAO.list.filter(s => s.weekType === 'ALL' || s.weekType === this.currentWeek);
+        
+		
+        // 데이터 그룹화 (중복 시간/강의실)
+        const groups = filtered.reduce((acc, s) => {
+            const key = `${s.room}-${s.startH}`;
+            if (!acc[key]) acc[key] = [];
+            acc[key].push(s);
+            return acc;
+        }, {});
+
+        // 3. 강의 카드 렌더링
+        Object.values(groups).forEach(group => {
+            const cell = document.createElement('div');
+            cell.className = 'cell lecture-cell';
+            cell.style.zIndex = "2"; // 빈 셀보다 위로 배치
+
+            const first = group[0];
+            const maxEndH = Math.max(...group.map(s => s.endH));
+            
+            cell.style.gridColumn = ScheduleDAO.roomMap[first.room];
+            cell.style.gridRow = `${first.startH - 9 + 2} / span ${maxEndH - first.startH}`;
+
+            if (group.length === 1) {
+                const s = group[0];
+                cell.innerHTML = `
+                    <div class="class-card bg-${s.category}">
+                        ${s.isBadge ? `<span class="badge">${s.isBadge}</span>` : ''}
+                        <div class="subject">${s.subject}</div>
+                        <div class="days">${s.days}</div>
+                        <div class="instructor">${s.instructor}</div>
+                        <div class="date-info">${s.dateInfo}</div>
+                    </div>`;
+            } else {
+                cell.innerHTML = `<div class="split-container">
+                    ${group.map(s => `
+                        <div class="split-item bg-${s.category}">
+                            <div class="subject" style="font-size:0.8rem">${s.subject}</div>
+                            <div class="days" style="font-size:0.65rem">${s.days}</div>
+                            <div class="instructor" style="font-size:0.7rem">${s.instructor}</div>
+							<div class="date-info">${s.dateInfo}</div>
+                        </div>`).join('')}
+                </div>`;
+            }
+            grid.appendChild(cell);
+        });
+    }
+};
+
+window.onload = () => {
+    app.init();
+	// 평일용 설정: 다음파일, 바색상, 평일여부(true)
+	CommonEngine.init('timetableWeekEndView.html', '#54a0ff', true);
+};
+</script>
+</body>
+</html>

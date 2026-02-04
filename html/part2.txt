@@ -1,0 +1,651 @@
+            if (!rgbValues) return '#000000';
+            return "#" + ((1 << 24) + (parseInt(rgbValues[0]) << 16) + (parseInt(rgbValues[1]) << 8) + parseInt(rgbValues[2])).toString(16).slice(1);
+        }
+
+        // --- Apply Logic ---
+        function applyStyle(prop, value) {
+            if (!selectedEl) return;
+            selectedEl.style[prop] = value;
+            if (prop === 'backgroundColor') document.getElementById('bg-color-val').innerText = rgbToHex(value);
+            if (prop === 'color') document.getElementById('text-color-val').innerText = rgbToHex(value);
+            if (prop === 'display') updateSidebarUI();
+            saveState();
+        }
+
+        function toggleStyle(prop, valOn, valOff) {
+            if (!selectedEl) return;
+            const current = window.getComputedStyle(selectedEl)[prop];
+            const isSet = String(current).includes(valOn) || (valOn === 'bold' && current === '700');
+            selectedEl.style[prop] = isSet ? valOff : valOn;
+            updateSidebarUI();
+            saveState();
+        }
+
+        function updateBorder() {
+            if (!selectedEl) return;
+            const w = document.getElementById('input-border-width').value;
+            const s = document.getElementById('input-border-style').value;
+            const c = document.getElementById('input-border-color').value;
+
+            if (s === 'none') {
+                selectedEl.style.border = 'none';
+            } else {
+                const width = w ? w + 'px' : '1px';
+                selectedEl.style.border = `${width} ${s} ${c}`;
+            }
+            saveState();
+        }
+
+        function applyAttribute(attr, value) {
+            if (!selectedEl) return;
+            selectedEl.setAttribute(attr, value);
+            saveState();
+            updateSidebarUI();
+        }
+
+        function applyClasses(value) {
+            if (!selectedEl) return;
+            const internalClasses = ['ve-hover', 've-selected'];
+            selectedEl.className = value + ' ' + internalClasses.join(' ');
+            saveState();
+        }
+
+        function toggleHtmlEdit() {
+            const area = document.getElementById('input-html');
+            area.classList.toggle('hidden');
+        }
+
+        function applyOuterHTML(value) {
+            if (!selectedEl) return;
+            try {
+                const temp = doc.createElement('div');
+                temp.innerHTML = value;
+                const newEl = temp.firstElementChild;
+                if (!newEl) return;
+
+                selectedEl.replaceWith(newEl);
+                selectedEl = newEl;
+                injectEditorStyles();
+                enableEditing();
+
+                selectElement(selectedEl);
+                saveState();
+            } catch (e) {
+                alert("HTML 오류");
+            }
+        }
+
+        function deleteSelected() {
+            if (!selectedEl) return;
+            if (confirm('삭제하시겠습니까?')) {
+                selectedEl.remove();
+                selectedEl = null;
+                updateSidebarUI();
+                saveState();
+            }
+        }
+
+        function cloneSelected() {
+            if (!selectedEl) return;
+            const clone = selectedEl.cloneNode(true);
+            clone.classList.remove('ve-selected');
+            selectedEl.insertAdjacentElement('afterend', clone);
+            saveState();
+            enableEditing();
+        }
+
+        document.getElementById('img-changer').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (file && selectedEl && selectedEl.tagName === 'IMG') {
+                const reader = new FileReader();
+                reader.onload = function (evt) {
+                    selectedEl.src = evt.target.result;
+                    updateSidebarUI();
+                    saveState();
+                };
+                reader.readAsDataURL(file);
+            }
+            this.value = '';
+        });
+
+        function saveHTML() {
+            if (!doc) return;
+            const style = doc.getElementById('visual-editor-style');
+            if (style) style.remove();
+            const selected = doc.querySelector('.ve-selected');
+            if (selected) selected.classList.remove('ve-selected');
+            
+            const html = doc.documentElement.outerHTML;
+            const blob = new Blob([html], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'index.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            injectEditorStyles();
+            enableEditing();
+            if (selected) selected.classList.add('ve-selected');
+        }
+
+        function setDevice(type) {
+            iframe.className = type;
+        }
+
+        window.onload = function () {
+            // 데모 로드 (Jelly Mix 테마 맛보기)
+            const demoHTML = `
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jelly Mix - 게임 디자인 기획서</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&family=Jua&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+/* 1. JELLY THEME SETUP */
+:root {
+    --jelly-red: #ff9f9f;
+    --jelly-orange: #ffc048;
+    --jelly-yellow: #fff200;
+    --jelly-green: #55efc4;
+    --jelly-blue: #74b9ff;
+    --jelly-purple: #a29bfe;
+    --text-dark: #2d3436;
+    --text-soft: #636e72;
+    --bg-cream: #fff0f6;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    background-color: #ffeaa7;
+    background-image: radial-gradient(#fab1a0 20%, transparent 20%), radial-gradient(#fafafa 20%, transparent 20%);
+    background-position: 0 0, 50px 50px;
+    background-size: 100px 100px;
+    margin: 0;
+    padding: 40px 0;
+    font-family: 'Jua', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+}
+
+/* 2. SLIDE CONTAINER STYLE */
+.slide-container {
+    background-color: rgba(255, 255, 255, 0.95);
+    width: 1280px;
+    height: 720px;
+    border-radius: 50px;
+    box-shadow: 0 20px 50px rgba(255, 118, 117, 0.2);
+    border: 8px solid #fff;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 60px;
+    transition: transform 0.3s ease;
+}
+
+.slide-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 25px 60px rgba(255, 118, 117, 0.3);
+}
+
+/* 3. TYPOGRAPHY & ELEMENTS */
+h1, h2, h3 {
+    font-family: 'Jua', sans-serif;
+    letter-spacing: 1px;
+}
+
+h2.slide-title {
+    font-size: 56px;
+    color: var(--jelly-purple);
+    margin: 0 0 40px 0;
+    text-shadow: 3px 3px 0px #dfe6e9;
+    position: relative;
+    display: inline-block;
+}
+
+h2.slide-title::after {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 15px;
+    background: var(--jelly-green);
+    opacity: 0.4;
+    border-radius: 10px;
+    position: absolute;
+    bottom: 8px;
+    left: 0;
+    z-index: -1;
+    transform: skewX(-10deg);
+}
+
+p, li {
+    font-size: 26px;
+    color: var(--text-soft);
+    line-height: 1.5;
+}
+
+/* 4. LAYOUT HELPERS */
+.content-area {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.two-column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+}
+
+.tiled-content {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+}
+
+/* 5. JELLY CARDS (TILES) */
+.jelly-card {
+    background: white;
+    border-radius: 35px;
+    padding: 30px;
+    flex: 1;
+    text-align: center;
+    border: 4px solid #f1f2f6;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.jelly-card:hover {
+    transform: scale(1.05) rotate(1deg);
+    border-color: var(--jelly-blue);
+}
+
+.jelly-card .icon {
+    font-size: 50px;
+    margin-bottom: 20px;
+    background: var(--bg-cream);
+    width: 100px;
+    height: 100px;
+    line-height: 100px;
+    border-radius: 50%;
+    display: inline-block;
+    color: var(--jelly-purple);
+}
+
+.jelly-card h3 {
+    font-size: 32px;
+    color: var(--text-dark);
+    margin-bottom: 10px;
+}
+
+/* 6. TITLE SLIDE SPECIAL */
+.title-slide {
+    text-align: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #fff0f6 0%, #e8f7ff 100%);
+}
+
+.title-text {
+    font-size: 110px;
+    font-family: 'Comfortaa', cursive;
+    font-weight: 700;
+    background: linear-gradient(to right, var(--jelly-red), var(--jelly-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.1));
+    margin: 0;
+    animation: jelly-bounce 2s infinite;
+}
+
+.subtitle {
+    font-size: 42px;
+    color: var(--jelly-blue);
+    margin-top: 10px;
+    font-weight: normal;
+}
+
+@keyframes jelly-bounce {
+    0%, 100% { transform: scale(1, 1); }
+    25% { transform: scale(0.9, 1.1); }
+    50% { transform: scale(1.1, 0.9); }
+    75% { transform: scale(0.95, 1.05); }
+}
+
+/* 7. IMAGES & WRAPPERS */
+.soft-img-frame {
+    border-radius: 40px;
+    overflow: hidden;
+    box-shadow: 10px 10px 0px var(--jelly-orange);
+    border: 5px solid #fff;
+    height: 400px;
+    width: 100%;
+}
+
+.soft-img-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* 8. LIST STYLES */
+ul.jelly-list {
+    list-style: none;
+    padding: 0;
+}
+
+ul.jelly-list li {
+    margin-bottom: 15px;
+    padding-left: 45px;
+    position: relative;
+    font-size: 26px;
+}
+
+ul.jelly-list li::before {
+    content: '🍮';
+    position: absolute;
+    left: 0;
+    top: 0px;
+    font-size: 28px;
+}
+
+/* 9. COLOR MIXING SECTION */
+.color-mix-row {
+    display: flex;
+    align-items: center;
+    font-size: 30px;
+    margin-bottom: 20px;
+    background: #fff;
+    padding: 15px 30px;
+    border-radius: 50px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
+
+.blob-deco {
+    position: absolute;
+    z-index: 0;
+    opacity: 0.6;
+}
+.blob-1 { top: -50px; left: -50px; color: var(--jelly-red); font-size: 300px; }
+.blob-2 { bottom: -50px; right: -50px; color: var(--jelly-blue); font-size: 300px; }
+
+/* 10. SCENARIO SPECIFIC STYLES (Refactored to Explicit Classes) */
+.scenario-step {
+    background: white;
+    padding: 20px 30px;
+    border-radius: 30px;
+    margin-bottom: 25px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.03);
+    position: relative;
+    border: 0 solid transparent; /* 초기화 */
+}
+
+.scenario-step h3 {
+    margin: 0 0 10px 0;
+    font-size: 28px;
+}
+
+/* --- 방향 클래스 (Layout/Logic) --- */
+.dir-left {
+    border-left-width: 8px;
+    border-right-width: 0;
+}
+
+.dir-right {
+    border-left-width: 0;
+    border-right-width: 8px;
+}
+
+/* --- 색상 클래스 (Theme/Variable) --- */
+.theme-green { border-color: var(--jelly-green); }
+.theme-green h3 { color: var(--jelly-green); }
+
+.theme-orange { border-color: var(--jelly-orange); }
+.theme-orange h3 { color: var(--jelly-orange); }
+
+.theme-purple { border-color: var(--jelly-purple); }
+.theme-purple h3 { color: var(--jelly-purple); }
+
+
+/* 11. PRINT & PDF BUTTON STYLES */
+.print-btn-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.print-btn {
+    background-color: var(--jelly-purple);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-family: 'Jua', sans-serif;
+    font-size: 20px;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(162, 155, 254, 0.4);
+    transition: transform 0.2s, background-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.print-btn:hover {
+    transform: translateY(-3px);
+    background-color: #8e84f5;
+}
+
+.print-btn:active {
+    transform: translateY(0);
+}
+
+@media print {
+    @page { size: landscape; margin: 0; }
+    body { background: white !important; padding: 0; margin: 0; display: block; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .print-btn-container { display: none !important; }
+    .slide-container { width: 100%; height: 100vh; margin: 0; border: none; border-radius: 0; box-shadow: none; page-break-after: always; break-after: page; transform: none !important; }
+    .slide-container:last-child { page-break-after: avoid; break-after: avoid; }
+}
+    </style>
+</head>
+<body>
+
+<div class="print-btn-container">
+    <button class="print-btn" onclick="window.print()">
+        <i class="fa-solid fa-print"></i> PDF 저장 / 인쇄
+    </button>
+</div>
+
+<div class="slide-container title-slide" id="slide1">
+    <div class="blob-deco blob-1" style="filter: blur(60px);">⬤</div>
+    <div class="blob-deco blob-2" style="filter: blur(60px);">⬤</div>
+    <div style="z-index: 2;">
+        <h1 class="title-text">Jelly Mix</h1>
+        <p class="subtitle">말랑말랑 퍼즐 어드벤처</p>
+        <div style="margin-top: 60px; background: rgba(255,255,255,0.5); display: inline-block; padding: 10px 30px; border-radius: 30px;">
+            <p style="font-size: 22px; color: #636e72; margin: 0;">게임 디자인 문서 v1.1</p>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide2">
+    <h2 class="slide-title">핵심 요약</h2>
+    <div class="content-area">
+        <div class="tiled-content">
+            <div class="jelly-card" style="border-color: var(--jelly-red);">
+                <div class="icon" style="color: var(--jelly-red);"><i class="fa-solid fa-gamepad"></i></div>
+                <h3>장르</h3>
+                <p>하이퍼 캐주얼 퍼즐<br>아케이드 전략</p>
+            </div>
+            <div class="jelly-card" style="border-color: var(--jelly-blue);">
+                <div class="icon" style="color: var(--jelly-blue);"><i class="fa-solid fa-users"></i></div>
+                <h3>타겟 고객</h3>
+                <p>10~30대 여성<br>귀여운거 좋아하는 분</p>
+            </div>
+            <div class="jelly-card" style="border-color: var(--jelly-yellow);">
+                <div class="icon" style="color: goldenrod;"><i class="fa-solid fa-star"></i></div>
+                <h3>핵심 재미</h3>
+                <p>말랑한 물리 엔진<br>색상 조합의 쾌감</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide3">
+    <h2 class="slide-title">컨셉: 젤리를 요리하세요!</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                <ul class="jelly-list">
+                    <li><strong>목표:</strong> 색상과 크기를 섞어<br>완벽한 왕젤리를 만드세요.</li>
+                    <li><strong>액션:</strong> 젤리 곰돌이를<br>미끄러지듯 쓩~ 이동시킵니다.</li>
+                    <li><strong>반응:</strong> 작은 젤리를 '냠!'하고 먹으면<br>몸집이 커지고 색이 변해요.</li>
+                    <li><strong>주의:</strong> 너무 뚱뚱해지면<br>좁은 문을 못 지나가요!</li>
+                </ul>
+            </div>
+            <div class="soft-img-frame">
+                <img src="img/jellymix01.png" 
+                     alt="Cute gummy bears pattern"
+                     onerror="this.src='https://placehold.co/600x400/ff9f9f/ffffff?text=Jelly+Concept'">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide4">
+    <h2 class="slide-title">게임 시나리오</h2>
+    <div class="content-area two-column" style="grid-template-columns: 2fr 3fr;">
+        <div class="soft-img-frame" style="box-shadow: 10px 10px 0px var(--jelly-purple); background: white; padding: 20px; height: 350px;">
+            <img src="img/jellymix_story.jpg" 
+                 alt="Story illustration"
+                 style="object-fit: contain;"
+                 onerror="this.src='https://placehold.co/600x400/fff200/555555?text=Story+Sketch:+Gray+World+vs+Color'">
+        </div>
+        <div>
+            <div class="scenario-step dir-left theme-green">
+                <h3>1. 프롤로그: 회색빛의 저주</h3>
+                <p style="font-size: 20px;">달콤하고 알록달록했던 <strong>'젤리 킹덤'</strong>에 짓궂은 먹구름 유령이 찾아와 모든 색깔을 빨아들여 세상이 회색빛으로 변해버렸습니다.</p>
+            </div>
+            <div class="scenario-step dir-right theme-orange">
+                <h3>2. 여정: 전설의 레시피</h3>
+                <p style="font-size: 20px;">유일하게 색이 남은 <strong>'꼬마 젤리'</strong>인 주인공. 고대 요리책에 적힌대로 친구들과 힘을 합쳐(Mix) 잃어버린 색을 되찾아야 합니다.</p>
+            </div>
+            <div class="scenario-step dir-left theme-purple">
+                <h3>3. 목표: 무지개 언덕으로!</h3>
+                <p style="font-size: 20px;">각 스테이지의 색깔 봉인을 풀고, 최종적으로 전설의 <strong>'레인보우 젤리'</strong>가 되어 왕국에 무지개를 띄우는 것이 최종 목표입니다.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide5">
+    <h2 class="slide-title">시스템: 색상 조합</h2>
+    <div class="content-area two-column">
+        <div>
+            <p style="margin-bottom: 30px;"><strong>CMY (물감 섞기)</strong> 규칙을 따릅니다.<br>직관적이고 배우기 쉬워요!</p>
+            <div class="color-mix-row"><span style="color:#ff7675">● 빨강</span> &nbsp;+&nbsp; <span style="color:#ffeaa7">● 노랑</span> &nbsp;=&nbsp; <span style="color:#e17055">● 주황</span></div>
+            <div class="color-mix-row"><span style="color:#74b9ff">● 파랑</span> &nbsp;+&nbsp; <span style="color:#ffeaa7">● 노랑</span> &nbsp;=&nbsp; <span style="color:#00b894">● 초록</span></div>
+            <div class="color-mix-row"><span style="color:#ff7675">● 빨강</span> &nbsp;+&nbsp; <span style="color:#74b9ff">● 파랑</span> &nbsp;=&nbsp; <span style="color:#a29bfe">● 보라</span></div>
+            <p style="font-size: 20px; color: #b2bec3; margin-top: 20px;">※ 이상한 색을 섞으면 "탄 젤리(검정)"가 되어버려요 ㅠㅠ</p>
+        </div>
+        <div class="soft-img-frame" style="box-shadow: -10px 10px 0px var(--jelly-blue); background: white; padding: 20px;">
+            <img src="img/jellymix02.png" 
+                 alt="Color mixing theory diagram"
+                 style="object-fit: contain;"
+                 onerror="this.src='https://placehold.co/600x400/74b9ff/ffffff?text=CMY+Mixing+Rule'">
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide6">
+    <h2 class="slide-title">시스템: 말랑 물리 엔진</h2>
+    <div class="content-area two-column" style="grid-template-columns: 2fr 3fr;">
+        <div class="soft-img-frame" style="height: 350px;">
+            <img src="img/jellymix03.png" 
+                 alt="Soft body physics simulation abstract"
+                 onerror="this.src='https://placehold.co/600x400/a29bfe/ffffff?text=Soft+Body+Physics'">
+        </div>
+        <div>
+            <div style="background: #fff; padding: 20px; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 20px;">
+                <h3 style="color: var(--jelly-green); font-size: 32px; margin-top: 0;">Soft Body (소프트 바디)</h3>
+                <p style="font-size: 22px; margin-bottom: 0;">젤리는 딱딱하지 않아요!<br>벽에 부딪히면 <em>'푸딩~'</em> 하고 흔들리고,<br>좁은 틈은 <em>'꾸깃'</em> 하고 비집고 들어갑니다.</p>
+            </div>
+            <h3 style="color: var(--jelly-orange); margin-bottom: 15px;">크기 규칙</h3>
+            <ul class="jelly-list">
+                <li style="font-size: 22px; margin-bottom: 10px;">레벨 1: 아기 젤리 (시작)</li>
+                <li style="font-size: 22px; margin-bottom: 10px;">젤리 1개 먹을 때마다 <strong>+1 레벨 업!</strong></li>
+                <li style="font-size: 22px; margin-bottom: 10px;">뚱뚱해지면 1칸짜리 틈은 못 가요.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide7">
+    <h2 class="slide-title">레벨 기믹</h2>
+    <div class="content-area">
+        <div class="tiled-content">
+            <div class="jelly-card">
+                <div class="icon" style="color: #ff7675; background: #fff0f0;"><i class="fa-solid fa-shapes"></i></div>
+                <h3>뾰족 가시</h3>
+                <p>닿으면 젤리가 터져서<br>작아져요! 아야!</p>
+            </div>
+            <div class="jelly-card">
+                <div class="icon" style="color: #00cec9; background: #e0fffe;"><i class="fa-solid fa-door-open"></i></div>
+                <h3>색깔 문</h3>
+                <p>같은 색깔 젤리만<br>통과시켜 줍니다.</p>
+            </div>
+            <div class="jelly-card">
+                <div class="icon" style="color: #fdcb6e; background: #fff8e0;"><i class="fa-solid fa-blender"></i></div>
+                <h3>믹서기</h3>
+                <p>색을 랜덤으로 바꾸거나<br>투명하게 씻어냅니다.</p>
+            </div>
+            <div class="jelly-card">
+                <div class="icon" style="color: #a29bfe; background: #f0f0ff;"><i class="fa-solid fa-bolt"></i></div>
+                <h3>포털</h3>
+                <p>젤리를 다른 곳으로<br>순간이동 뿅!</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide8">
+    <h2 class="slide-title">UI/UX 전략</h2>
+    <div class="content-area two-column">
+        <div class="soft-img-frame" style="border-radius: 50%; width: 450px; height: 450px; margin: 0 auto; border: 8px solid #fff;">
+            <img src="img/jellymix04.png" 
+                 alt="Colorful playful mobile game UI"
+                 onerror="this.src='https://placehold.co/600x600/55efc4/ffffff?text=Game+UI+Mockup'">
+        </div>
+        <div>
+            <h3 style="font-size: 36px; color: var(--jelly-purple);">"보기만 해도 달콤하게"</h3>
+            <ul class="jelly-list" style="margin-top: 30px;">
+                <li><strong>광택 버튼:</strong> 누르고 싶게 반짝반짝하게 디자인합니다.</li>
+                <li><strong>피드백:</strong> 합쳐질 때 <em>'쭈압!'</em> 소리와 함께<br>화려한 색종이 파티클이 터집니다.</li>
+                <li><strong>직관성:</strong> 글씨보다는 아이콘과 색상으로<br>설명합니다.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>`;
+            loadContent(demoHTML);
+        }
+
+    </script>
+</body>
+
+</html>

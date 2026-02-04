@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>유튜브 섬네일 통합 생성기 (3-in-1)</title>
+    <!-- 폰트 로드: 프리텐다드 -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <style>
+        /* --- 기본 UI 스타일 --- */
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        h1 { margin-bottom: 20px; color: #fff; }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            justify-content: center;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        /* 컨트롤 패널 */
+        .controls {
+            flex: 1;
+            min-width: 300px;
+            background: #2a2a2a;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .control-group { margin-bottom: 20px; }
+        .control-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #ccc; font-size: 0.9em; }
+        
+        input[type="text"], input[type="file"], select, input[type="color"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #444;
+            background: #333;
+            color: white;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        /* 레이아웃 선택 버튼 그룹 */
+        .layout-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .layout-btn {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #555;
+            background: #333;
+            color: #aaa;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .layout-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        button#download-btn {
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            color: #000;
+            border: none;
+            padding: 15px;
+            width: 100%;
+            font-size: 1.1em;
+            font-weight: 800;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: transform 0.1s;
+        }
+        button#download-btn:active { transform: scale(0.98); }
+
+        /* --- 프리뷰 영역 (핵심) --- */
+        .preview-wrapper {
+            flex: 2;
+            min-width: 320px;
+            max-width: 800px; /* 16:9 기준 너비 제한 */
+        }
+
+        .thumbnail-canvas {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            user-select: none;
+        }
+
+        /* 공통 요소 */
+        .bg-image {
+            position: absolute;
+            object-fit: cover;
+            transition: all 0.5s ease;
+        }
+        
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            transition: all 0.5s ease;
+        }
+
+        .text-container {
+            position: absolute;
+            z-index: 10;
+            transition: all 0.5s ease;
+            width: 100%; height: 100%;
+            top: 0; left: 0;
+        }
+
+        /* 텍스트 요소 공통 */
+        .txt-badge { display: inline-block; font-weight: 700; transition: all 0.3s; }
+        .txt-main { font-weight: 900; line-height: 1.1; margin: 10px 0; transition: all 0.3s; white-space: pre-wrap; }
+        .txt-sub { font-weight: 500; transition: all 0.3s; }
+        .highlight { color: var(--highlight-color, #FFD700); }
+
+        /* =========================================
+           레이아웃별 스타일 정의
+           ========================================= */
+
+        /* --- TYPE A: 분할형 (왼쪽 텍스트, 오른쪽 이미지) --- */
+        .layout-a .bg-image {
+            width: 60%;
+            height: 100%;
+            right: 0;
+            top: 0;
+            /* 클립패스로 사선 분할 느낌 주기 (선택사항) */
+            clip-path: polygon(10% 0, 100% 0, 100% 100%, 0% 100%);
+        }
+        .layout-a .overlay {
+            /* 왼쪽 배경색 영역 */
+            background: var(--bg-color, #111);
+            width: 45%; /* 이미지랑 약간 겹치게 */
+            z-index: 1;
+        }
+        .layout-a .text-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding-left: 5%;
+            width: 45%; /* 텍스트 영역 제한 */
+        }
+        .layout-a .txt-badge {
+            background: var(--highlight-color, #FFD700);
+            color: #000;
+            padding: 5px 10px;
+            font-size: clamp(14px, 1.5vw, 18px);
+            margin-bottom: 10px;
+        }
+        .layout-a .txt-main {
+            font-size: clamp(30px, 4vw, 50px);
+            color: #fff;
+            text-align: left;
+        }
+        .layout-a .txt-sub {
+            font-size: clamp(14px, 1.5vw, 20px);
+            color: #ccc;
+            margin-top: 10px;
+        }
+
+        /* --- TYPE B: 시네마틱 (전체 이미지, 중앙 정렬, 글로우) --- */
+        .layout-b .bg-image {
+            width: 100%; height: 100%; left: 0; top: 0;
+            clip-path: none;
+        }
+        .layout-b .overlay {
+            width: 100%;
+            background: radial-gradient(circle, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.8) 100%);
+        }
+        .layout-b .text-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+        .layout-b .txt-badge {
+            border: 1px solid rgba(255,255,255,0.5);
+            color: #ddd;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: clamp(12px, 1.2vw, 16px);
+            background: rgba(0,0,0,0.3);
+            margin-bottom: 15px;
+        }
+        .layout-b .txt-main {
+            font-size: clamp(40px, 5vw, 70px);
+            color: #fff;
+            text-shadow: 0 0 20px var(--highlight-color, rgba(255, 215, 0, 0.5));
+        }
+        .layout-b .txt-sub {
+            font-size: clamp(16px, 1.8vw, 24px);
+            color: #ccc;
+            margin-top: 5px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* --- TYPE C: 강조형 (사선 텍스트, 스트로크, 하단 바) --- */
+        .layout-c .bg-image {
+            width: 100%; height: 100%; left: 0; top: 0;
+            filter: blur(2px); /* 배경 살짝 흐림 */
+            transform: scale(1.05); /* 블러시 외곽 잘림 방지 */
+        }
+        .layout-c .overlay {
+            width: 100%;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.6));
+        }
+        .layout-c .text-container {
+            display: block;
+        }
+        /* C타입: 뱃지는 우측 상단 */
+        .layout-c .txt-badge {
+            position: absolute;
+            top: 20px; right: 20px;
+            background: #d32f2f;
+            color: white;
+            padding: 8px 15px;
+            font-size: clamp(16px, 2vw, 24px);
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.5);
+            transform: rotate(5deg);
+        }
+        /* C타입: 메인은 중앙 사선 */
+        .layout-c .txt-main {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) rotate(-5deg);
+            font-size: clamp(50px, 6vw, 90px);
+            color: var(--highlight-color, #FFD700);
+            width: 90%;
+            text-align: center;
+            /* 강력한 외곽선 */
+            text-shadow: 
+                3px 3px 0 #000, -3px 3px 0 #000, 
+                3px -3px 0 #000, -3px -3px 0 #000,
+                5px 5px 0 #000;
+        }
+        /* C타입: 서브는 하단 바 */
+        .layout-c .txt-sub {
+            position: absolute;
+            bottom: 0; width: 100%;
+            background: rgba(0,0,0,0.85);
+            padding: 15px 20px;
+            margin: 0;
+            text-align: left;
+            box-sizing: border-box;
+            color: #fff;
+            border-top: 3px solid var(--highlight-color, #FFD700);
+            font-size: clamp(16px, 2vw, 22px);
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>🎬 팀 프로젝트 섬네일 메이커</h1>
+
+    <div class="container">
+        <!-- 설정 패널 -->
+        <div class="controls">
+            <div class="control-group">
+                <label>1. 레이아웃 스타일 선택</label>
+                <div class="layout-selector">
+                    <button class="layout-btn active" onclick="changeLayout('layout-a')">A. 분할형</button>
+                    <button class="layout-btn" onclick="changeLayout('layout-b')">B. 영화형</button>
+                    <button class="layout-btn" onclick="changeLayout('layout-c')">C. 강조형</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>2. 배경 이미지 업로드</label>
+                <input type="file" id="img-input" accept="image/*">
+            </div>
+
+            <div class="control-group">
+                <label id="lbl-badge">3. 뱃지/상단 텍스트 (예: 제작 기간)</label>
+                <input type="text" id="in-badge" value="3개월 제작">
+            </div>
+
+            <div class="control-group">
+                <label id="lbl-main">4. 메인 타이틀</label>
+                <input type="text" id="in-main" value="부재 : 잃어버린 코드를 찾아서">
+            </div>
+
+            <div class="control-group">
+                <label id="lbl-sub">5. 서브 텍스트 (예: 팀명)</label>
+                <input type="text" id="in-sub" value="Unity 3D 팀 프로젝트">
+            </div>
+
+            <div class="control-group" style="display: flex; gap: 10px;">
+                <div style="flex:1">
+                    <label>포인트 색상</label>
+                    <input type="color" id="in-color" value="#FFD700">
+                </div>
+                <div style="flex:1">
+                    <label>배경 색상 (A타입용)</label>
+                    <input type="color" id="in-bg-color" value="#111111">
+                </div>
+            </div>
+
+            <button id="download-btn">💾 이미지 저장하기</button>
+        </div>
+
+        <!-- 미리보기 패널 -->
+        <div class="preview-wrapper">
+            <!-- 캡쳐 대상 영역 -->
+            <div id="capture-area" class="thumbnail-canvas layout-a">
+                <img src="https://picsum.photos/1280/720?grayscale" class="bg-image" id="preview-img">
+                <div class="overlay"></div>
+                
+                <div class="text-container">
+                    <div class="txt-badge" id="out-badge">3개월 제작</div>
+                    <div class="txt-main" id="out-main">부재 : 잃어버린 코드를 찾아서</div>
+                    <div class="txt-sub" id="out-sub">Unity 3D 팀 프로젝트</div>
+                </div>
+            </div>
+            <p style="text-align: center; color: #666; margin-top: 10px; font-size: 0.9em;">
+                * 이미지가 보이지 않으면 파일을 다시 업로드해주세요.
+            </p>
+        </div>
+    </div>
+
+    <!-- html2canvas 라이브러리 -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
+    <script>
+        // DOM 요소 참조
+        const canvasEl = document.getElementById('capture-area');
+        const imgInput = document.getElementById('img-input');
+        const previewImg = document.getElementById('preview-img');
+        
+        // 입력 필드 참조
+        const inBadge = document.getElementById('in-badge');
+        const inMain = document.getElementById('in-main');
+        const inSub = document.getElementById('in-sub');
+        const inColor = document.getElementById('in-color');
+        const inBgColor = document.getElementById('in-bg-color');
+
+        // 출력 텍스트 참조
+        const outBadge = document.getElementById('out-badge');
+        const outMain = document.getElementById('out-main');
+        const outSub = document.getElementById('out-sub');
+
+        // 라벨 참조 (가이드용)
+        const lblBadge = document.getElementById('lbl-badge');
+        const lblMain = document.getElementById('lbl-main');
+        const lblSub = document.getElementById('lbl-sub');
+
+        // 1. 텍스트 및 색상 실시간 반영
+        function updateText() {
+            outBadge.innerText = inBadge.value;
+            outMain.innerText = inMain.value;
+            outSub.innerText = inSub.value;
+            
+            // CSS 변수로 색상 제어
+            canvasEl.style.setProperty('--highlight-color', inColor.value);
+            canvasEl.style.setProperty('--bg-color', inBgColor.value);
+        }
+
+        [inBadge, inMain, inSub, inColor, inBgColor].forEach(el => {
+            el.addEventListener('input', updateText);
+        });
+
+        // 2. 이미지 업로드 처리
+        imgInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImg.src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 3. 레이아웃 변경 로직
+        function changeLayout(type) {
+            // 모든 클래스 제거 후 선택한 클래스 추가
+            canvasEl.classList.remove('layout-a', 'layout-b', 'layout-c');
+            canvasEl.classList.add(type);
+
+            // 버튼 활성화 스타일 업데이트
+            document.querySelectorAll('.layout-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // 입력창 라벨 업데이트 (UX 개선)
+            if (type === 'layout-a') {
+                lblBadge.innerText = "3. 강조 문구 (왼쪽 상단 박스)";
+                lblMain.innerText = "4. 메인 제목 (왼쪽 중앙)";
+                lblSub.innerText = "5. 서브 제목 (왼쪽 하단)";
+            } else if (type === 'layout-b') {
+                lblBadge.innerText = "3. 상단 작은 문구 (Team 등)";
+                lblMain.innerText = "4. 메인 제목 (중앙 빛나는 효과)";
+                lblSub.innerText = "5. 하단 설명 (영문 등)";
+            } else if (type === 'layout-c') {
+                lblBadge.innerText = "3. 우측 상단 뱃지 (경고/강조)";
+                lblMain.innerText = "4. 메인 카피 (중앙 사선 큰 글씨)";
+                lblSub.innerText = "5. 하단 띠 내용 (프로젝트명)";
+            }
+        }
+
+        // 4. 다운로드 기능
+        document.getElementById('download-btn').addEventListener('click', () => {
+            const btn = document.getElementById('download-btn');
+            const originalText = btn.innerText;
+            btn.innerText = "생성 중...";
+            
+            html2canvas(canvasEl, {
+                scale: 2, // 고해상도
+                useCORS: true,
+                backgroundColor: null // 투명도 이슈 방지
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `thumbnail_${Date.now()}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+                btn.innerText = originalText;
+            }).catch(err => {
+                alert("이미지 생성 오류: " + err);
+                btn.innerText = originalText;
+            });
+        });
+
+        // 초기 실행
+        updateText();
+
+    </script>
+</body>
+</html>

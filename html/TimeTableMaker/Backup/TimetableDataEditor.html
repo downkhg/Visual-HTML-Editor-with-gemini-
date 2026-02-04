@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Lecture Data Editor (MVC)</title>
+    <style>
+        :root {
+            --primary: #54a0ff;
+            --bg: #1e272e;
+            --card-bg: #2d3436;
+            --text: #f5f6fa;
+            --danger: #ff4757;
+            --success: #2ecc71;
+        }
+
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+        .editor-container { max-width: 1200px; margin: 0 auto; }
+        .toolbar { display: flex; justify-content: space-between; margin-bottom: 20px; gap: 10px; }
+        
+        table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 8px; overflow: hidden; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #444; font-size: 0.9rem; }
+        th { background: #3d4446; color: var(--primary); }
+        tr:hover { background: rgba(255,255,255,0.05); }
+
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-add { background: var(--primary); color: white; }
+        .btn-save { background: var(--success); color: white; }
+        .btn-edit { background: #f1c40f; color: #2d3436; margin-right: 5px; }
+        .btn-del { background: var(--danger); color: white; }
+
+        /* Modal Style */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; }
+        .modal-content { background: var(--card-bg); width: 500px; margin: 50px auto; padding: 30px; border-radius: 12px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #aaa; }
+        .form-group input, .form-group select { width: 100%; padding: 8px; background: #3d4446; border: 1px solid #555; color: white; border-radius: 4px; box-sizing: border-box;}
+
+        #json-output { width: 100%; height: 200px; margin-top: 20px; background: #000; color: #0f0; font-family: monospace; padding: 10px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+<div class="editor-container">
+    <h2>📅 강의 데이터 마스터 에디터</h2>
+    
+    <div class="toolbar">
+        <div>
+            <button class="btn btn-add" onclick="controller.handleOpenAddModal()">➕ 강의 추가</button>
+            <button class="btn btn-save" onclick="controller.handleExportJSON()">💾 JSON 추출 (data.js용)</button>
+        </div>
+        <div>
+            <select id="data-source-type" onchange="controller.handleSourceChange(this.value)" style="padding: 8px; background: #3d4446; color: white; border-radius: 4px;">
+                <option value="weekday">평일 데이터 (data.js)</option>
+                <option value="weekend">주말 데이터 (dataWeekEnd.js)</option>
+            </select>
+        </div>
+    </div>
+
+    <table id="lecture-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>강의실</th>
+                <th>과목명</th>
+                <th>강사</th>
+                <th>시간</th>
+                <th>요일</th>
+                <th>카테고리</th>
+                <th>작업</th>
+            </tr>
+        </thead>
+        <tbody id="lecture-list"></tbody>
+    </table>
+
+    <textarea id="json-output" readonly placeholder="추출 버튼을 누르면 여기에 JSON 코드가 생성됩니다."></textarea>
+</div>
+
+<div id="editor-modal" class="modal">
+    <div class="modal-content">
+        <h3 id="modal-title">강의 정보 수정</h3>
+        <form id="lecture-form">
+            <input type="hidden" id="f-id">
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>강의실</label>
+                    <input type="text" id="f-room" placeholder="M, O, P..." required>
+                </div>
+                <div class="form-group" style="flex: 2;">
+                    <label>과목명</label>
+                    <input type="text" id="f-subject" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>강사</label>
+                <input type="text" id="f-instructor" required>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group">
+                    <label>시작(H)</label>
+                    <input type="number" id="f-startH" min="9" max="22" required>
+                </div>
+                <div class="form-group">
+                    <label>종료(H)</label>
+                    <input type="number" id="f-endH" min="9" max="22" required>
+                </div>
+                <div class="form-group">
+                    <label>요일</label>
+                    <input type="text" id="f-days" placeholder="월~금, 토/일" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>기간 정보</label>
+                <input type="text" id="f-dateInfo" placeholder="MM-DD ~ MM-DD">
+            </div>
+            <div class="form-group">
+                <label>카테고리 (CSS 클래스명)</label>
+                <select id="f-category">
+                    <option value="prog-adv">prog-adv (프로그래밍 심화)</option>
+                    <option value="art-adv">art-adv (원화 심화)</option>
+                    <option value="art-basic">art-basic (기초아트웍)</option>
+                    <option value="webtoon">webtoon (웹툰)</option>
+                    <option value="plan-adv">plan-adv (기획)</option>
+                    <option value="graphic">graphic (그래픽)</option>
+                    <option value="kdigital">kdigital (국비)</option>
+                    <option value="port">port (포트폴리오)</option>
+                </select>
+            </div>
+            <div style="text-align: right; margin-top: 20px;">
+                <button type="button" class="btn" onclick="controller.handleCloseModal()">취소</button>
+                <button type="submit" class="btn btn-add">저장하기</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+/**
+ * 1. MODEL
+ */
+const model = {
+    data: [],
+    
+    init() {
+        // 초기 로드 시 LECTURE_DATA (data.js) 사용
+        this.data = typeof LECTURE_DATA !== 'undefined' ? [...LECTURE_DATA] : [];
+    },
+
+    getAll() { return this.data; },
+
+    getById(id) { return this.data.find(l => l.id == id); },
+
+    remove(id) {
+        this.data = this.data.filter(l => l.id != id);
+    },
+
+    save(formData) {
+        if (formData.id) {
+            // Update
+            const index = this.data.findIndex(l => l.id == formData.id);
+            this.data[index] = { ...this.data[index], ...formData };
+        } else {
+            // Create
+            const newId = this.data.length > 0 ? Math.max(...this.data.map(d => d.id)) + 1 : 1;
+            this.data.push({ ...formData, id: newId });
+        }
+    }
+};
+
+/**
+ * 2. VIEW
+ */
+const view = {
+    renderList(list) {
+        const tbody = document.getElementById('lecture-list');
+        tbody.innerHTML = list.map(item => `
+            <tr>
+                <td>${item.id}</td>
+                <td><b style="color:var(--primary)">${item.room}</b></td>
+                <td>${item.subject}</td>
+                <td>${item.instructor}</td>
+                <td>${item.startH}:00 - ${item.endH}:00</td>
+                <td>${item.days}</td>
+                <td><span class="bg-${item.category}" style="padding:2px 6px; border-radius:4px; font-size:11px;">${item.category}</span></td>
+                <td>
+                    <button class="btn btn-edit" onclick="controller.handleOpenEditModal(${item.id})">수정</button>
+                    <button class="btn btn-del" onclick="controller.handleDelete(${item.id})">삭제</button>
+                </td>
+            </tr>
+        `).join('');
+    },
+
+    showModal(lecture = null) {
+        const modal = document.getElementById('editor-modal');
+        const form = document.getElementById('lecture-form');
+        document.getElementById('modal-title').innerText = lecture ? '강의 정보 수정' : '새 강의 추가';
+        
+        if (lecture) {
+            document.getElementById('f-id').value = lecture.id;
+            document.getElementById('f-room').value = lecture.room;
+            document.getElementById('f-subject').value = lecture.subject;
+            document.getElementById('f-instructor').value = lecture.instructor;
+            document.getElementById('f-startH').value = lecture.startH;
+            document.getElementById('f-endH').value = lecture.endH;
+            document.getElementById('f-days').value = lecture.days;
+            document.getElementById('f-dateInfo').value = lecture.dateInfo;
+            document.getElementById('f-category').value = lecture.category;
+        } else {
+            form.reset();
+            document.getElementById('f-id').value = '';
+        }
+        modal.style.display = 'block';
+    },
+
+    closeModal() {
+        document.getElementById('editor-modal').style.display = 'none';
+    },
+
+    renderExport(jsonString) {
+        const out = document.getElementById('json-output');
+        out.value = `const LECTURE_DATA = ${jsonString};`;
+        out.select();
+        alert("JSON 데이터가 하단 텍스트 박스에 생성되었습니다. 복사하여 data.js에 붙여넣으세요.");
+    }
+};
+
+/**
+ * 3. CONTROLLER
+ */
+const controller = {
+    init() {
+        model.init();
+        view.renderList(model.getAll());
+
+        // 폼 제출 이벤트 바인딩
+        document.getElementById('lecture-form').onsubmit = (e) => {
+            e.preventDefault();
+            this.handleSave();
+        };
+    },
+
+    handleOpenAddModal() {
+        view.showModal();
+    },
+
+    handleOpenEditModal(id) {
+        const lecture = model.getById(id);
+        view.showModal(lecture);
+    },
+
+    handleCloseModal() {
+        view.closeModal();
+    },
+
+    handleSave() {
+        const formData = {
+            id: document.getElementById('f-id').value,
+            room: document.getElementById('f-room').value,
+            subject: document.getElementById('f-subject').value,
+            instructor: document.getElementById('f-instructor').value,
+            startH: parseInt(document.getElementById('f-startH').value),
+            endH: parseInt(document.getElementById('f-endH').value),
+            days: document.getElementById('f-days').value,
+            dateInfo: document.getElementById('f-dateInfo').value,
+            category: document.getElementById('f-category').value,
+            weekType: "ALL", // 기본값
+            isBadge: ""
+        };
+        
+        model.save(formData);
+        view.renderList(model.getAll());
+        view.closeModal();
+    },
+
+    handleDelete(id) {
+        if (confirm(`${id}번 강의를 삭제하시겠습니까?`)) {
+            model.remove(id);
+            view.renderList(model.getAll());
+        }
+    },
+
+    handleExportJSON() {
+        const data = model.getAll();
+        const json = JSON.stringify(data, null, 2);
+        view.renderExport(json);
+    },
+
+    handleSourceChange(val) {
+        alert("데이터 소스를 변경하려면 해당 js 파일이 로드되어 있어야 합니다. (현재는 데모를 위해 data.js 기준 동작)");
+    }
+};
+
+// 앱 시작
+window.onload = () => controller.init();
+</script>
+
+</body>
+</html>

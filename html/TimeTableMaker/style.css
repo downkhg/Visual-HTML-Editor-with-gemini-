@@ -1,0 +1,185 @@
+:root {
+    /* --- [색상 팔레트] --- */
+    --bg-body: #1e272e;
+    --bg-grid: #2d3436;     /* 그리드 배경을 조금 더 어둡게 */
+    --text-primary: #dfe6e9;
+    --text-secondary: #b2bec3;
+    
+    /* 과목별 색상 (유지) */
+    --c-plan-basic: #fffbe7; --c-plan-adv: #f1c40f;
+    --c-prog-basic: #dff9fb; --c-prog-adv: #0984e3;
+    --c-art-basic: #fff0f3; --c-art-adv: #c0392b;
+    --c-port: #16a085; --c-graphic: #8e44ad;
+    --c-webtoon: #f39c12; --c-ui: #e74c3c;
+    --c-emo: #fad390; --c-kdigital: #d35400;
+    --c-novel: #6c5ce7;
+
+    /* 테마 기본값 */
+    --header-bg: #feca57;
+    --border-color: #54a0ff;
+    --grid-row-height: 85px;
+}
+
+body {
+    font-family: 'Pretendard', sans-serif;
+    background-color: var(--bg-body);
+    color: var(--text-primary);
+    margin: 0; padding: 20px;
+    display: flex; flex-direction: column; align-items: center;
+}
+
+.container {
+    width: 100%; min-width: 1200px; /* 넓은 화면 기준 */
+    padding-bottom: 20px;
+}
+
+/* --- [상단 컨트롤 바] --- */
+.top-bar {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 20px;
+    border-bottom: 3px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.mode-controls {
+    background: rgba(0,0,0,0.4);
+    padding: 5px; border-radius: 30px;
+    display: flex; gap: 5px;
+}
+
+.ctrl-btn {
+    background: transparent; border: none;
+    color: #b2bec3; padding: 8px 24px;
+    cursor: pointer; font-weight: 700; font-size: 1rem;
+    border-radius: 20px; transition: all 0.2s;
+}
+
+.ctrl-btn.active {
+    background-color: var(--border-color);
+    color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+/* --- [그리드 레이아웃 공통] --- */
+.grid {
+    display: grid;
+    grid-template-columns: 80px repeat(8, 1fr); /* 시간축 + 강의실 8개 */
+    grid-template-rows: 50px repeat(13, var(--grid-row-height)); /* 헤더 + 13시간 */
+    gap: 4px; width: 100%;
+    background-color: var(--bg-grid);
+    border: 1px solid #444;
+    padding: 4px; border-radius: 4px;
+}
+
+.cell {
+    display: flex; justify-content: center; align-items: center;
+    position: relative;
+    border-radius: 4px;
+}
+
+.header {
+    background-color: var(--header-bg);
+    color: #2d3436; font-weight: 900; font-size: 1.1rem;
+    text-transform: uppercase;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 10;
+}
+
+.time-col {
+    background: rgba(255,255,255,0.05);
+    color: var(--text-secondary);
+    font-size: 0.9rem; font-weight: 600;
+}
+
+/* --- [셀 컨테이너: 핵심] --- */
+/* 이 컨테이너가 그리드 한 칸을 차지하며, 내부의 카드들을 가로로 정렬합니다 */
+.cell-group {
+    width: 100%; height: 100%;
+    display: flex;       /* 가로 배치 (Flexbox) */
+    gap: 2px;            /* 카드 사이 간격 */
+    padding: 1px;        /* 미세 여백 */
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* --- [카드 공통 스타일] --- */
+.card {
+    flex: 1;             /* 공간을 N등분하여 꽉 채움 */
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    text-align: center;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    transition: transform 0.2s, z-index 0.2s;
+    overflow: hidden;
+    position: relative;
+}
+.card:hover {
+    transform: scale(1.05); z-index: 100;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+}
+
+/* 배경색 유틸리티 (기존 유지) */
+.bg-plan { background-color: var(--c-plan-basic); color: #2d3436; }
+.bg-plan-adv { background-color: var(--c-plan-adv); color: #2d3436; }
+.bg-prog { background-color: var(--c-prog-basic); color: #2d3436; }
+.bg-prog-adv { background-color: var(--c-prog-adv); color: white; }
+.bg-art-basic { background-color: var(--c-art-basic); color: #2d3436; }
+.bg-art-adv { background-color: var(--c-art-adv); color: white; }
+.bg-port { background-color: var(--c-port); color: white; }
+.bg-graphic { background-color: var(--c-graphic); color: white; }
+.bg-webtoon { background-color: var(--c-webtoon); color: white; }
+.bg-ui { background-color: var(--c-ui); color: white; }
+.bg-emo { background-color: var(--c-emo); color: #2d3436; }
+.bg-kdigital { background-color: var(--c-kdigital); color: white; }
+.bg-novel { background-color: var(--c-novel); color: white; }
+
+/* =========================================
+   [스타일 분리 정의] 평일(Weekday) vs 주말(Weekend)
+   ========================================= */
+
+/* 1. 평일 스타일 (넓고 시원하게) */
+.mode-weekday .card {
+    padding: 5px;
+}
+.mode-weekday .subject {
+    font-size: 1rem; font-weight: 800;
+    margin-bottom: 4px; line-height: 1.2;
+}
+.mode-weekday .instructor { font-size: 0.85rem; margin-bottom: 2px; }
+.mode-weekday .date-info { font-size: 0.7rem; opacity: 0.8; }
+.mode-weekday .badge {
+    position: absolute; top: 4px; right: 4px;
+    background: #e17055; color: white;
+    font-size: 0.6rem; padding: 2px 4px; border-radius: 3px;
+}
+
+/* 2. 주말 스타일 (좁고 길쭉한 카드에 최적화) */
+.mode-weekend .card {
+    padding: 2px; /* 패딩 축소 */
+}
+.mode-weekend .subject {
+    font-size: 0.75rem; /* 글자 축소 */
+    font-weight: 800;
+    margin-bottom: 2px;
+    word-break: break-all; /* 좁을 때 줄바꿈 */
+    line-height: 1.1;
+}
+.mode-weekend .days {
+    font-size: 0.65rem; font-weight: 700;
+    background: rgba(0,0,0,0.2);
+    color: rgba(255,255,255,0.9);
+    padding: 1px 5px; border-radius: 10px;
+    margin: 2px 0;
+}
+.mode-weekend .instructor { font-size: 0.7rem; }
+.mode-weekend .date-info {
+    font-size: 0.6rem; opacity: 0.9;
+    transform: scale(0.9); /* 강제 축소 */
+    white-space: nowrap;
+}
+
+/* 주말 테마 컬러 오버라이드 */
+body[data-theme="weekend"] {
+    --header-bg: #ff9f43; /* 주황색 헤더 */
+    --border-color: #ff9f43;
+}

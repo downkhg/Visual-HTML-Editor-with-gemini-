@@ -1,0 +1,392 @@
+/* SBS 게임 아카데미 시간표 공통 스타일 */
+:root {
+    --c-plan-basic: #fffbe7;
+    --c-plan-adv: #f1c40f;
+    --c-prog-basic: #dff9fb;
+    --c-prog-adv: #0c2461;
+    --c-art-basic: #fff0f3;
+    --c-art-adv: #b33939;
+    --c-port: #218c74;
+    --c-graphic: #82589F;
+    --c-webtoon: #e58e26;
+    --c-ui: #e55039;
+    --c-emo: #fad390;
+    --c-kdigital: #d35400;
+    --bg-body: #1e272e;
+    --bg-grid: #353b48;
+    --header-bg: #feca57;
+    --text-dark: #2d3436;
+    --text-light: #f5f6fa;
+    --text-light: #f5f6fa;
+}
+
+body {
+    font-family: 'Pretendard', sans-serif;
+    background-color: var(--bg-body);
+    color: var(--text-light);
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.container {
+    width: 100%;
+	max-width: none; /* 반응형 제한 해제 */
+    overflow-x: auto; /* 창이 작아지면 가로 스크롤 생성 */
+    padding-bottom: 20px;
+}
+
+/* 그리드 레이아웃 */
+.grid {
+    display: grid;
+    /* 시간축(60~80px) 고정 + 나머지 8개 칸은 화면에 맞춰 균등 배분 */
+    grid-template-columns: 80px repeat(8, minmax(130px, 1fr)); 
+    grid-template-rows: 45px repeat(14, 85px);
+    gap: 6px;
+    width: 100%; /* 너비를 100%로 변경 */
+    min-width: 1100px; /* 너무 찌그러지지 않게 최소 하한선 유지 */
+}
+
+.cell {
+    background-color: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    padding: 2px;
+}
+
+.header {
+    background-color: var(--header-bg);
+    color: var(--text-dark);
+    font-weight: 800;.split-item
+    border-radius: 8px;
+    text-align: center;
+    line-height: 45px;
+}
+
+.time-col {
+    color: #b2bec3;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* 강의 카드 공통 스타일 */
+.class-card {
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 8px 4px;
+    box-sizing: border-box;
+    transition: transform 0.2s;
+	container-type: inline-size;
+}
+
+.class-card:hover {
+    transform: scale(1.02);
+    z-index: 10;
+}
+
+.subject {
+    font-size: clamp(0.01rem, 15cqw, 0.95rem);
+    font-weight: 800;
+    line-height: 1.2;
+    word-break: keep-all;
+    margin-bottom: 2px;
+}
+
+.days {
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(0,0,0,0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin: 4px 0;
+}
+
+.instructor {
+    font-size: 0.8rem;
+}
+
+.date-info {
+    font-size: 0.65rem;
+    opacity: 0.85;
+    margin-top: 4px;
+}
+
+.badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 0.6rem;
+    padding: 2px 5px;
+    border-radius: 4px;
+    background: #ff4757;
+    color: white;
+    font-weight: bold;
+}
+
+/* 분할 뷰 스타일 */
+.split-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    gap: 4px;
+}
+
+.split-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-radius: 6px;
+    padding: 4px;
+    text-align: center;
+    container-type: inline-size; /* [추가] 너비 감지 활성화 */
+}
+
+/* 카테고리별 배경색 클래스 */
+.bg-plan { background-color: var(--c-plan-basic); color: var(--text-dark); }
+.bg-plan-adv { background-color: var(--c-plan-adv); color: var(--text-dark); }
+.bg-prog { background-color: var(--c-prog-basic); color: var(--text-dark); }
+.bg-prog-adv { background-color: var(--c-prog-adv); color: white; }
+.bg-art-basic { background-color: var(--c-art-basic); color: var(--text-dark); }
+.bg-art-adv { background-color: var(--c-art-adv); color: white; }
+.bg-port { background-color: var(--c-port); color: white; }
+.bg-graphic { background-color: var(--c-graphic); color: white; }
+.bg-webtoon { background-color: var(--c-webtoon); color: white; }
+.bg-ui { background-color: var(--c-ui); color: white; }
+.bg-emo { background-color: var(--c-emo); color: var(--text-dark); }
+.bg-kdigital { background-color: var(--c-kdigital); color: white; }
+
+/* 상단 바 및 토글 버튼 */
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #54a0ff;
+    padding-bottom: 15px;
+}
+
+.week-toggle {
+    display: flex;
+    background: rgba(0,0,0,0.3);
+    border-radius: 20px;
+    padding: 4px;
+    gap: 5px;
+}
+
+.week-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 16px;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.week-btn.active {
+    background-color: #54a0ff;
+    color: white;
+}
+
+ /* 주말 전용 추가 스타일: 2x2 쿼드 그리드 */
+:root {
+	--c-novel: #6c5ce7;
+	--c-programming: #0984e3;
+}
+.bg-novel { background-color: var(--c-novel); color: white; }
+.bg-programming { background-color: var(--c-programming); color: white; }
+
+.split-container-2x2 {
+	display: grid;
+	width: 100%;
+	height: 100%;
+	gap: 2px;
+	padding: 2px;
+	box-sizing: border-box;
+}
+
+/* 2개일 때 좌우 분할, 3~4개일 때 2x2 격자 */
+.split-container-2x2.count-2 { grid-template-columns: 1fr 1fr; }
+.split-container-2x2.count-3,
+.split-container-2x2.count-4 { 
+	grid-template-columns: 1fr 1fr; 
+	grid-template-rows: 1fr 1fr; 
+}
+
+/* 5~6개 이상일 때: 3열 x 2행 구조 (너비가 넓어질 것이므로 가능) */
+.split-container-2x2.count-5,
+.split-container-2x2.count-6 {
+    grid-template-columns: 1fr 1fr 1fr; /* 3열 */
+    grid-template-rows: 1fr 1fr;        /* 2행 */
+}
+
+/* 7~9개일 때 (혹시 모를 대비): 3열 x 3행 */
+.split-container-2x2.count-7,
+.split-container-2x2.count-8,
+.split-container-2x2.count-9 {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+}
+
+.split-item {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	border-radius: 4px;
+	padding: 2px;
+	text-align: center;
+	overflow: hidden;
+	min-width: 0;
+	line-height: 1.1;
+}
+
+.split-item .subject {
+	font-size: clamp(0.65rem, 9cqw, 0.85rem) !important;
+	font-weight: 800;
+	margin-bottom: 2px;
+	white-space: nowrap;
+}
+
+.split-item .date-info {
+	font-size: 0.6rem !important;
+	opacity: 0.9;
+	line-height: 1;
+}
+
+.split-item .instructor {
+	font-size: 0.65rem;
+	margin-bottom: 2px;
+}
+
+/* --- [공통] 포커스 하이라이트 애니메이션 스타일 --- */
+.focus-highlight {
+    box-shadow: 0 0 15px 5px rgba(254, 202, 87, 0.8); /* 노란색 빛 번짐 효과 */
+    border: 2px solid #ff9f43 !important; /* 주황색 테두리 강조 */
+    z-index: 100; /* 다른 요소보다 위에 표시 */
+    transform: scale(1.05); /* 살짝 커지는 효과 */
+    transition: all 0.3s ease-in-out; /* 부드러운 전환 */
+}
+
+/* 주말반 작은 셀(split-item) 전용 포커스 스타일 조정 */
+.split-item.focus-highlight {
+     box-shadow: 0 0 10px 3px rgba(254, 202, 87, 0.9);
+     transform: scale(1.1); /* 작은 셀은 좀 더 확 커지게 */
+}
+
+/* --- 엔진 및 하이라이트 필수 스타일 --- */
+#rotation-bar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 5px;
+    z-index: 10000;
+    width: 0%;
+    transition: linear 1s;
+}
+
+/* 십자선 헤더 하이라이트 */
+.header-highlight {
+    background-color: #ff9f43 !important;
+    color: white !important;
+    box-shadow: 0 0 15px rgba(255, 159, 67, 0.8);
+    transform: scale(1.05);
+    z-index: 100;
+    transition: all 0.3s ease;
+}
+
+/* 시간 열은 파란색으로 차별화 */
+.time-col.header-highlight {
+    background-color: #54a0ff !important;
+}
+
+/* 강의 카드 포커스 효과 */
+.focus-highlight {
+    box-shadow: 0 0 20px 5px rgba(254, 202, 87, 0.9) !important;
+    border: 3px solid #ff9f43 !important;
+    transform: scale(1.08) !important;
+    z-index: 200 !important;
+}
+
+/* --- [최종 수정] 주말반 좌우 분할: 깔끔한 머테리얼 스타일 --- */
+
+/* 1. 기본 셀 설정: 테두리(Frame) 제거 및 그림자 강조 */
+.cell.lecture-cell {
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 8px 4px;
+    box-sizing: border-box;
+    transition: transform 0.2s;
+	container-type: inline-size;
+}
+
+/* 2. 토요일 (왼쪽) 디자인: 구분선(Border) 대신 간격(Margin) 활용 */
+.cell.lecture-cell.sat-only {
+    width: 50% !important; /* 2px 틈 */
+    justify-self: start !important;
+    margin-right: 2px; /* 오른쪽 여백으로 분리 */
+    
+    /* 선으로 된 테두리 제거 */
+    border-right: none; 
+    
+    /* 안쪽(오른쪽) 모서리만 각지게 처리하여 '연결된 느낌' 제거 */
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+}
+
+/* 3. 일요일 (오른쪽) 디자인 */
+.cell.lecture-cell.sun-only {
+    width: calc(50%) !important;
+    justify-self: end !important;
+    margin-left: 0px; /* 왼쪽 여백으로 분리 */
+    
+    /* 선으로 된 테두리 제거 */
+    border-left: none;
+    
+    /* 안쪽(왼쪽) 모서리 각지게 처리 */
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+}
+
+/* 4. 좁은 공간용 폰트 최적화 (유지) */
+.sat-only .subject, 
+.sun-only .subject {
+    font-size: 0.75rem !important; 
+    white-space: nowrap;          
+    overflow: hidden;
+    text-overflow: ellipsis;      
+}
+
+.sat-only .instructor, .sat-only .date-info,
+.sun-only .instructor, .sun-only .date-info {
+    font-size: 0.6rem !important; 
+    transform: scale(0.95);      
+}
+
+/* 5. 호버 효과 수정: 크기 확대(width) 제거, 살짝 떠오르는(Lift) 효과만 적용 */
+.cell.lecture-cell:hover {
+    z-index: 100 !important;
+    transform: translateY(0px); /* 위로 살짝 뜸 */
+    box-shadow: 0 8px 15px rgba(0,0,0,0.3); /* 그림자 진해짐 */
+    /* width 변경 코드 삭제됨 -> 레이아웃 깨짐 방지 */
+}

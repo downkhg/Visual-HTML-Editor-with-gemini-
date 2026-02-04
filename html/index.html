@@ -1,14 +1,22 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visual HTML Editor v0.04</title>
+    <!-- 
+    버전정보
+    v00.00.00
+    첫째자리: 릴리즈버전
+    둘째자리: 기능추가 버전
+    셋째자리: 기능/버그 수정 버전
+     -->
+    <title>Visual HTML Editor v0.03.02</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        /* --- 에디터 UI 스타일 --- */
+        /* --- 에디터 UI 스타일 (편집 대상과 분리) --- */
         body,
         html {
             margin: 0;
@@ -18,6 +26,7 @@
             font-family: 'Pretendard', sans-serif;
         }
 
+        /* 레이아웃 */
         #app-container {
             display: flex;
             height: 100vh;
@@ -27,6 +36,7 @@
         /* 사이드바 */
         #sidebar {
             width: 360px;
+            /* 패널 더 확장 */
             background-color: #1e293b;
             color: #e2e8f0;
             display: flex;
@@ -36,6 +46,7 @@
             overflow-y: auto;
         }
 
+        /* 스크롤바 커스텀 */
         #sidebar::-webkit-scrollbar {
             width: 6px;
         }
@@ -49,6 +60,7 @@
         #editor-canvas {
             flex: 1;
             background-color: #cbd5e1;
+            /* 캔버스 배경 */
             position: relative;
             display: flex;
             justify-content: center;
@@ -59,7 +71,7 @@
             background-size: 20px 20px;
         }
 
-        /* 아이프레임 */
+        /* 아이프레임 (편집 화면) */
         #content-frame {
             background: white;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
@@ -149,6 +161,15 @@
             cursor: pointer;
         }
 
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        input[type="color"]::-webkit-color-swatch {
+            border: 1px solid #475569;
+            border-radius: 4px;
+        }
+
         input[type="range"] {
             width: 100%;
             accent-color: #3b82f6;
@@ -176,6 +197,14 @@
             background-color: #475569;
         }
 
+        .btn.primary {
+            background-color: #2563eb;
+        }
+
+        .btn.primary:hover {
+            background-color: #1d4ed8;
+        }
+
         .btn.danger {
             background-color: #ef4444;
             color: white;
@@ -185,6 +214,11 @@
             background-color: #3b82f6;
             color: white;
             border: 1px solid #60a5fa;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .btn-icon {
@@ -244,68 +278,90 @@
             color: white;
             transform: scale(1.1);
         }
+
+        .icon-btn.active {
+            background: #2563eb;
+            color: white;
+            border: 1px solid #60a5fa;
+        }
+
+        /* Hide scrollbar for icon grid */
+        .icon-grid::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .icon-grid::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
     </style>
 </head>
 
 <body>
 
     <div id="app-container">
+        <!-- 사이드바 -->
         <aside id="sidebar">
+            <!-- 1. 헤더 & 파일 관리 -->
             <div class="panel-section bg-slate-900 sticky top-0 z-10">
                 <div class="flex items-center gap-3 mb-4">
                     <div
-                        class="w-12 h-8 bg-blue-600 rounded flex items-center justify-center font-bold text-white text-xs shadow-lg">
-                        v.04</div>
-                    <h1 class="font-bold text-sm">Visual Editor <span class="text-slate-500 font-normal">v0.04</span>
-                    </h1>
+                        class="w-12 h-8 bg-purple-500 rounded flex items-center justify-center font-bold text-white text-xs shadow-lg">
+                        v.03</div>
+                    <h1 class="font-bold text-sm">Visual Editor v0.03</h1>
                 </div>
 
                 <div class="flex gap-2 mb-2">
                     <button onclick="document.getElementById('file-upload').click()" class="btn flex-1"><i
                             class="fa-solid fa-folder-open"></i> 열기</button>
-                    <button onclick="app.saveHTML()" class="btn flex-1 text-green-400"><i
-                            class="fa-solid fa-download"></i> 저장</button>
+                    <button onclick="saveHTML()" class="btn flex-1 text-green-400"><i class="fa-solid fa-download"></i>
+                        저장</button>
                 </div>
                 <input type="file" id="file-upload" accept=".html,.htm" hidden>
 
                 <div class="flex gap-2">
-                    <button onclick="app.undo()" class="btn flex-1 text-yellow-400" title="Ctrl+Z"><i
+                    <button onclick="undo()" class="btn flex-1 text-yellow-400" title="Ctrl+Z"><i
                             class="fa-solid fa-rotate-left"></i> Undo</button>
-                    <button onclick="app.redo()" class="btn flex-1 text-yellow-400" title="Ctrl+Y"><i
+                    <button onclick="redo()" class="btn flex-1 text-yellow-400" title="Ctrl+Y"><i
                             class="fa-solid fa-rotate-right"></i> Redo</button>
                 </div>
             </div>
 
+            <!-- 2. 선택된 요소 정보 -->
             <div class="panel-section border-b border-slate-700 bg-slate-800/50">
                 <div class="section-title">
                     <span>Selection</span>
                     <span id="selected-tag-display" class="text-xs text-blue-300 font-mono">none</span>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="app.selectParent()" class="btn btn-icon flex-1" title="부모 선택 (UP)"><i
+                    <button onclick="selectParent()" class="btn btn-icon flex-1" title="부모 선택 (UP)"><i
                             class="fa-solid fa-arrow-up"></i></button>
-                    <button onclick="app.cloneSelected()" class="btn btn-icon flex-1" title="복제"><i
+                    <button onclick="cloneSelected()" class="btn btn-icon flex-1" title="복제"><i
                             class="fa-regular fa-clone"></i></button>
-                    <button onclick="app.deleteSelected()" class="btn btn-icon flex-1 danger" title="삭제"><i
+                    <button onclick="deleteSelected()" class="btn btn-icon flex-1 danger" title="삭제"><i
                             class="fa-solid fa-trash"></i></button>
                 </div>
             </div>
 
+            <!-- 2.5 Icon Picker (조건부 표시: 아이콘 선택 시) -->
             <div id="icon-panel" class="panel-section bg-slate-800 hidden border-l-4 border-purple-500">
-                <div class="section-title text-purple-300">Pictogram</div>
+                <div class="section-title text-purple-300">Pictogram (아이콘 변경)</div>
                 <div class="mb-2">
-                    <input type="text" placeholder="Search icons..." onkeyup="app.renderIconGrid(this.value)"
-                        class="text-xs">
+                    <input type="text" id="icon-search" placeholder="Search icons (e.g. user, arrow)..."
+                        onkeyup="filterIcons(this.value)" class="text-xs">
                 </div>
-                <div id="icon-grid-container" class="icon-grid"></div>
+                <div id="icon-grid-container" class="icon-grid">
+                    <!-- JS로 아이콘 목록이 렌더링 됩니다 -->
+                </div>
             </div>
 
+            <!-- 3. Typography -->
             <div class="panel-section">
-                <div class="section-title">Typography</div>
+                <div class="section-title">Typography (문자)</div>
 
                 <div class="mb-2">
                     <label class="control-label block mb-1">폰트 (Font Family)</label>
-                    <select class="style-control" data-style-prop="fontFamily">
+                    <select id="input-font-family" onchange="applyStyle('fontFamily', this.value)">
                         <option value="">기본 (Inherit)</option>
                         <option value="'Jua', sans-serif">Jua (둥근체)</option>
                         <option value="'Comfortaa', cursive">Comfortaa (영문 둥근체)</option>
@@ -318,48 +374,51 @@
                 <div class="control-row">
                     <span class="control-label">색상</span>
                     <div class="flex gap-2 items-center flex-1 justify-end">
-                        <input type="color" class="style-control" data-style-prop="color">
+                        <span id="text-color-val" class="text-xs text-slate-400">#000000</span>
+                        <input type="color" id="input-color" onchange="applyStyle('color', this.value)">
                     </div>
                 </div>
 
                 <div class="control-grid mb-2">
                     <div>
                         <label class="control-label block mb-1">크기 (px)</label>
-                        <input type="number" class="style-control" data-style-prop="fontSize" data-unit="px">
+                        <input type="number" id="input-font-size" onchange="applyStyle('fontSize', this.value + 'px')">
                     </div>
                     <div>
                         <label class="control-label block mb-1">줄 간격</label>
-                        <input type="number" step="0.1" class="style-control" data-style-prop="lineHeight">
+                        <input type="number" step="0.1" id="input-line-height"
+                            onchange="applyStyle('lineHeight', this.value)">
                     </div>
                 </div>
 
                 <div class="btn-group mb-2">
-                    <button class="btn style-btn" data-style-prop="textAlign" data-value="left"><i
+                    <button onclick="applyStyle('textAlign', 'left')" class="btn" id="btn-align-left"><i
                             class="fa-solid fa-align-left"></i></button>
-                    <button class="btn style-btn" data-style-prop="textAlign" data-value="center"><i
+                    <button onclick="applyStyle('textAlign', 'center')" class="btn" id="btn-align-center"><i
                             class="fa-solid fa-align-center"></i></button>
-                    <button class="btn style-btn" data-style-prop="textAlign" data-value="right"><i
+                    <button onclick="applyStyle('textAlign', 'right')" class="btn" id="btn-align-right"><i
                             class="fa-solid fa-align-right"></i></button>
-                    <button class="btn style-btn" data-style-prop="textAlign" data-value="justify"><i
+                    <button onclick="applyStyle('textAlign', 'justify')" class="btn" id="btn-align-justify"><i
                             class="fa-solid fa-align-justify"></i></button>
                 </div>
 
                 <div class="btn-group">
-                    <button class="btn style-toggle" data-style-prop="fontWeight" data-on="bold" data-off="normal"><i
+                    <button onclick="toggleStyle('fontWeight', 'bold', 'normal')" class="btn" id="btn-bold"><i
                             class="fa-solid fa-bold"></i></button>
-                    <button class="btn style-toggle" data-style-prop="fontStyle" data-on="italic" data-off="normal"><i
+                    <button onclick="toggleStyle('fontStyle', 'italic', 'normal')" class="btn" id="btn-italic"><i
                             class="fa-solid fa-italic"></i></button>
-                    <button class="btn style-toggle" data-style-prop="textDecoration" data-on="underline"
-                        data-off="none"><i class="fa-solid fa-underline"></i></button>
+                    <button onclick="toggleStyle('textDecoration', 'underline', 'none')" class="btn"
+                        id="btn-underline"><i class="fa-solid fa-underline"></i></button>
                 </div>
             </div>
 
+            <!-- 4. Layout -->
             <div class="panel-section">
                 <div class="section-title">Layout & Spacing</div>
 
                 <div class="mb-2">
-                    <label class="control-label block mb-1">배치 (Display)</label>
-                    <select class="style-control" data-style-prop="display" id="input-display">
+                    <label class="control-label block mb-1">배치 방식 (Display)</label>
+                    <select id="input-display" onchange="applyStyle('display', this.value); updateSidebarUI();">
                         <option value="block">Block</option>
                         <option value="flex">Flex (정렬 컨테이너)</option>
                         <option value="inline">Inline</option>
@@ -369,11 +428,12 @@
                     </select>
                 </div>
 
+                <!-- Flex Controls -->
                 <div id="flex-controls" class="bg-slate-800 p-2 rounded mb-2 hidden">
                     <label class="control-label block mb-1 text-blue-300">Flex 정렬</label>
                     <div class="control-row">
                         <span class="control-label text-xs">가로</span>
-                        <select class="style-control text-xs" data-style-prop="justifyContent">
+                        <select id="input-justify" class="text-xs" onchange="applyStyle('justifyContent', this.value)">
                             <option value="flex-start">시작 (Left)</option>
                             <option value="center">중앙 (Center)</option>
                             <option value="flex-end">끝 (Right)</option>
@@ -383,7 +443,7 @@
                     </div>
                     <div class="control-row">
                         <span class="control-label text-xs">세로</span>
-                        <select class="style-control text-xs" data-style-prop="alignItems">
+                        <select id="input-align" class="text-xs" onchange="applyStyle('alignItems', this.value)">
                             <option value="stretch">채우기 (Stretch)</option>
                             <option value="flex-start">상단 (Top)</option>
                             <option value="center">중앙 (Middle)</option>
@@ -391,89 +451,96 @@
                         </select>
                     </div>
                     <div class="control-row">
-                        <span class="control-label text-xs">Gap</span>
-                        <input type="text" class="style-control text-xs" data-style-prop="gap" placeholder="10px">
+                        <span class="control-label text-xs">간격 (Gap)</span>
+                        <input type="text" id="input-gap" placeholder="10px" class="text-xs"
+                            onchange="applyStyle('gap', this.value)">
                     </div>
                 </div>
 
                 <div class="control-grid">
                     <div>
                         <label class="control-label block mb-1">Pad</label>
-                        <input type="text" class="style-control" data-style-prop="padding" placeholder="10px">
+                        <input type="text" id="input-padding" placeholder="10px"
+                            onchange="applyStyle('padding', this.value)">
                     </div>
                     <div>
                         <label class="control-label block mb-1">Margin</label>
-                        <input type="text" class="style-control" data-style-prop="margin" placeholder="0 auto">
+                        <input type="text" id="input-margin" placeholder="0 auto"
+                            onchange="applyStyle('margin', this.value)">
                     </div>
                     <div>
                         <label class="control-label block mb-1">W</label>
-                        <input type="text" class="style-control" data-style-prop="width" placeholder="100%">
+                        <input type="text" id="input-width" placeholder="100%"
+                            onchange="applyStyle('width', this.value)">
                     </div>
                     <div>
                         <label class="control-label block mb-1">H</label>
-                        <input type="text" class="style-control" data-style-prop="height" placeholder="auto">
+                        <input type="text" id="input-height" placeholder="auto"
+                            onchange="applyStyle('height', this.value)">
                     </div>
                 </div>
             </div>
 
+            <!-- 5. Decoration -->
             <div class="panel-section">
-                <div class="section-title">Decoration</div>
+                <div class="section-title">Decoration (꾸미기)</div>
 
                 <div class="control-row">
                     <span class="control-label">배경색</span>
                     <div class="flex gap-2 items-center flex-1 justify-end">
-                        <input type="color" class="style-control" data-style-prop="backgroundColor">
+                        <span id="bg-color-val" class="text-xs text-slate-400">none</span>
+                        <input type="color" id="input-bg-color" onchange="applyStyle('backgroundColor', this.value)">
                     </div>
                 </div>
 
                 <div class="mb-3">
                     <div class="control-row">
-                        <label class="control-label">Radius</label>
+                        <label class="control-label">둥근 모서리 (Radius)</label>
                         <span id="radius-val" class="text-xs text-blue-300">0px</span>
                     </div>
-                    <input type="range" class="style-control" data-style-prop="borderRadius" data-unit="px" min="0"
-                        max="100" value="0"
-                        oninput="document.getElementById('radius-val').innerText = this.value + 'px'">
+                    <input type="range" id="input-radius" min="0" max="100" value="0"
+                        oninput="applyStyle('borderRadius', this.value + 'px'); document.getElementById('radius-val').innerText = this.value + 'px'">
                 </div>
 
                 <div class="mb-3">
                     <label class="control-label block mb-1">테두리 (Border)</label>
                     <div class="flex gap-1">
-                        <input type="number" id="border-width" placeholder="px" style="width: 50px"
-                            class="border-group">
-                        <select id="border-style" class="border-group">
+                        <input type="number" id="input-border-width" placeholder="px" style="width: 50px"
+                            onchange="updateBorder()">
+                        <select id="input-border-style" onchange="updateBorder()">
                             <option value="none">없음</option>
                             <option value="solid">실선</option>
                             <option value="dashed">점선</option>
                             <option value="dotted">도트</option>
                         </select>
-                        <input type="color" id="border-color" value="#000000" class="border-group">
+                        <input type="color" id="input-border-color" value="#000000" onchange="updateBorder()">
                     </div>
                 </div>
 
                 <div class="mb-1">
                     <label class="control-label block mb-1">그림자 (Shadow)</label>
                     <div class="btn-group">
-                        <button class="btn style-btn flex-1 text-xs" data-style-prop="boxShadow"
-                            data-value="none">X</button>
-                        <button class="btn style-btn flex-1 text-xs" data-style-prop="boxShadow"
-                            data-value="0 2px 5px rgba(0,0,0,0.1)">약</button>
-                        <button class="btn style-btn flex-1 text-xs" data-style-prop="boxShadow"
-                            data-value="0 10px 20px rgba(0,0,0,0.15)">중</button>
-                        <button class="btn style-btn flex-1 text-xs" data-style-prop="boxShadow"
-                            data-value="0 20px 50px rgba(0,0,0,0.25)">강</button>
+                        <button onclick="applyStyle('boxShadow', 'none')" class="btn flex-1 text-xs">X</button>
+                        <button onclick="applyStyle('boxShadow', '0 2px 5px rgba(0,0,0,0.1)')"
+                            class="btn flex-1 text-xs">약</button>
+                        <button onclick="applyStyle('boxShadow', '0 10px 20px rgba(0,0,0,0.15)')"
+                            class="btn flex-1 text-xs">중</button>
+                        <button onclick="applyStyle('boxShadow', '0 20px 50px rgba(0,0,0,0.25)')"
+                            class="btn flex-1 text-xs">강</button>
+                        <button onclick="applyStyle('boxShadow', '0 0 15px rgba(255, 255, 255, 0.8)')"
+                            class="btn flex-1 text-xs"><i class="fa-solid fa-sun"></i></button>
                     </div>
                 </div>
             </div>
 
+            <!-- 6. Advanced -->
             <div class="panel-section">
                 <div class="section-title">Advanced</div>
 
                 <div class="mb-2" id="img-control-group" style="display:none;">
                     <label class="control-label block mb-1">이미지 소스 (SRC)</label>
                     <div class="flex gap-1">
-                        <input type="text" id="input-src" class="text-xs"
-                            onchange="app.applyAttribute('src', this.value)">
+                        <input type="text" id="input-src" class="text-xs" onchange="applyAttribute('src', this.value)">
                         <button onclick="document.getElementById('img-changer').click()" class="btn btn-icon"><i
                                 class="fa-regular fa-image"></i></button>
                     </div>
@@ -481,30 +548,31 @@
 
                 <div class="mb-2">
                     <label class="control-label block mb-1">Classes</label>
-                    <input type="text" id="input-classes" onchange="app.applyClasses(this.value)">
+                    <input type="text" id="input-classes" onchange="applyClasses(this.value)">
                 </div>
 
                 <div>
-                    <button onclick="app.toggleHtmlEdit()" class="btn w-full text-xs mb-1">Raw HTML 편집 <i
+                    <button onclick="toggleHtmlEdit()" class="btn w-full text-xs mb-1">Raw HTML 편집 <i
                             class="fa-solid fa-code ml-1"></i></button>
                     <textarea id="input-html" rows="4" class="font-mono text-xs hidden"
-                        onchange="app.applyOuterHTML(this.value)"></textarea>
+                        onchange="applyOuterHTML(this.value)"></textarea>
                 </div>
             </div>
 
             <div class="mt-auto panel-section bg-slate-900 border-t border-slate-700">
                 <div class="flex gap-2">
-                    <button onclick="app.setDevice('desktop')" class="btn flex-1"><i
+                    <button onclick="setDevice('desktop')" class="btn flex-1" title="PC"><i
                             class="fa-solid fa-desktop"></i></button>
-                    <button onclick="app.setDevice('tablet')" class="btn flex-1"><i
+                    <button onclick="setDevice('tablet')" class="btn flex-1" title="Tablet"><i
                             class="fa-solid fa-tablet-screen-button"></i></button>
-                    <button onclick="app.setDevice('mobile')" class="btn flex-1"><i
+                    <button onclick="setDevice('mobile')" class="btn flex-1" title="Mobile"><i
                             class="fa-solid fa-mobile-screen-button"></i></button>
                 </div>
             </div>
         </aside>
 
-        <main id="editor-canvas" onclick="app.deselectAll(event)">
+        <!-- 메인 캔버스 -->
+        <main id="editor-canvas" onclick="deselectAll(event)">
             <iframe id="content-frame" class="desktop"></iframe>
         </main>
     </div>
@@ -512,566 +580,1007 @@
     <input type="file" id="img-changer" accept="image/*" hidden>
 
     <script>
-        /**
-         * GUIManager Class
-         * - 모든 UI 이벤트와 스타일 동기화를 중앙에서 관리
-         */
-        class GUIManager {
-            constructor() {
-                this.controls = [];
-                this.init();
+        const iframe = document.getElementById('content-frame');
+        let doc = null;
+        let isEditMode = true;
+        let selectedEl = null;
+
+        // --- Icon Data (자주 쓰는 아이콘 목록) ---
+        const commonIcons = [
+            'fa-solid fa-user', 'fa-solid fa-user-secret', 'fa-regular fa-user', 'fa-solid fa-users',
+            'fa-solid fa-house', 'fa-solid fa-shop', 'fa-solid fa-building', 'fa-solid fa-landmark',
+            'fa-solid fa-magnifying-glass', 'fa-solid fa-bars', 'fa-solid fa-gear', 'fa-solid fa-bell',
+            'fa-solid fa-check', 'fa-solid fa-xmark', 'fa-solid fa-plus', 'fa-solid fa-trash',
+            'fa-solid fa-pen', 'fa-solid fa-image', 'fa-solid fa-music', 'fa-solid fa-video',
+            'fa-solid fa-heart', 'fa-regular fa-heart', 'fa-solid fa-star', 'fa-regular fa-star',
+            'fa-solid fa-thumbs-up', 'fa-solid fa-comment', 'fa-solid fa-share', 'fa-solid fa-envelope',
+            'fa-solid fa-arrow-right', 'fa-solid fa-arrow-left', 'fa-solid fa-arrow-up', 'fa-solid fa-arrow-down',
+            'fa-solid fa-chevron-right', 'fa-solid fa-chevron-left', 'fa-solid fa-chevron-down', 'fa-solid fa-caret-down',
+            'fa-solid fa-phone', 'fa-solid fa-location-dot', 'fa-solid fa-globe', 'fa-solid fa-wifi',
+            'fa-solid fa-battery-full', 'fa-solid fa-bolt', 'fa-solid fa-desktop', 'fa-solid fa-mobile',
+            'fa-solid fa-calendar', 'fa-solid fa-clock', 'fa-solid fa-circle-info', 'fa-solid fa-circle-question',
+            'fa-solid fa-gamepad', 'fa-solid fa-ghost', 'fa-solid fa-puzzle-piece', 'fa-solid fa-dice',
+            'fa-brands fa-facebook', 'fa-brands fa-twitter', 'fa-brands fa-instagram', 'fa-brands fa-github',
+            'fa-brands fa-youtube', 'fa-brands fa-discord', 'fa-brands fa-google', 'fa-brands fa-apple'
+        ];
+
+        // --- Undo/Redo ---
+        let historyStack = [];
+        let historyIndex = -1;
+        const MAX_HISTORY = 40;
+
+        function saveState() {
+            if (!doc) return;
+            const style = doc.getElementById('visual-editor-style');
+            if (style) style.remove();
+
+            const selected = doc.querySelector('.ve-selected');
+            if (selected) selected.classList.remove('ve-selected');
+
+            const html = doc.documentElement.outerHTML;
+
+            injectEditorStyles();
+            if (selectedEl && doc.contains(selectedEl)) {
+                selectedEl.classList.add('ve-selected');
             }
 
-            init() {
-                // 1. Style Control Inputs (Input, Select)
-                const inputs = document.querySelectorAll('.style-control');
-                inputs.forEach(el => {
-                    this.controls.push(el);
-                    el.addEventListener('input', (e) => this.handleInput(e));
-                    el.addEventListener('change', (e) => this.handleInput(e)); // for color picker compat
-                });
-
-                // 2. Style Buttons (Alignment, Shadow etc)
-                const btns = document.querySelectorAll('.style-btn');
-                btns.forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const prop = btn.dataset.styleProp;
-                        const val = btn.dataset.value;
-                        app.applyStyle(prop, val);
-                        this.syncUI(app.selectedEl); // 버튼 클릭 시 UI 갱신 (Active 상태 변경 등)
-                    });
-                });
-
-                // 3. Style Toggles (Bold, Italic)
-                const toggles = document.querySelectorAll('.style-toggle');
-                toggles.forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const prop = btn.dataset.styleProp;
-                        const onVal = btn.dataset.on;
-                        const offVal = btn.dataset.off;
-                        app.toggleStyle(prop, onVal, offVal);
-                    });
-                });
-
-                // 4. Border Group (Complex Logic)
-                const borderInputs = document.querySelectorAll('.border-group');
-                borderInputs.forEach(el => {
-                    el.addEventListener('change', () => this.handleBorderChange());
-                    el.addEventListener('input', () => this.handleBorderChange());
-                });
+            if (historyIndex < historyStack.length - 1) {
+                historyStack = historyStack.slice(0, historyIndex + 1);
             }
-
-            // Input Event Handler
-            handleInput(e) {
-                if (!app.selectedEl) return;
-                const target = e.target;
-                const prop = target.dataset.styleProp;
-                let val = target.value;
-                const unit = target.dataset.unit || '';
-
-                if (val && unit && !val.includes(unit)) {
-                    val += unit;
-                }
-
-                app.applyStyle(prop, val);
-
-                // 특수 로직: Display 변경 시 사이드바 UI 갱신 필요
-                if (prop === 'display') {
-                    this.syncUI(app.selectedEl);
-                }
-            }
-
-            handleBorderChange() {
-                if (!app.selectedEl) return;
-                const w = document.getElementById('border-width').value;
-                const s = document.getElementById('border-style').value;
-                const c = document.getElementById('border-color').value;
-
-                if (s === 'none') {
-                    app.selectedEl.style.border = 'none';
-                } else {
-                    const width = w ? w + 'px' : '1px';
-                    app.selectedEl.style.border = `${width} ${s} ${c}`;
-                }
-                app.saveState();
-            }
-
-            // Sync UI with Selected Element
-            syncUI(el) {
-                if (!el) {
-                    // Reset or Disable UI
-                    return;
-                }
-
-                const s = window.getComputedStyle(el);
-                const styleRaw = el.style;
-
-                // 1. Auto-sync inputs based on data-style-prop
-                this.controls.forEach(ctrl => {
-                    const prop = ctrl.dataset.styleProp;
-                    if (!prop) return;
-
-                    let val = styleRaw[prop] || s[prop]; // 우선 인라인 스타일, 없으면 computed
-
-                    // Color conversion
-                    if (prop.toLowerCase().includes('color')) {
-                        val = app.rgbToHex(val);
-                    }
-                    // Font Family cleanup
-                    if (prop === 'fontFamily') {
-                        val = app.getFontFamilyValue(val);
-                    }
-                    // Unit removal for number inputs
-                    if (ctrl.type === 'number' || ctrl.type === 'range') {
-                        val = parseFloat(val) || ''; // '16px' -> 16
-                    }
-
-                    ctrl.value = val;
-                });
-
-                // 2. Sync Buttons (Active State)
-                document.querySelectorAll('.style-btn').forEach(btn => {
-                    const prop = btn.dataset.styleProp;
-                    const val = btn.dataset.value;
-                    const current = s[prop];
-                    if (current.includes(val) || (prop === 'textAlign' && current === val)) {
-                        btn.classList.add('active');
-                    } else {
-                        btn.classList.remove('active');
-                    }
-                });
-
-                // 3. Sync Toggles
-                document.querySelectorAll('.style-toggle').forEach(btn => {
-                    const prop = btn.dataset.styleProp;
-                    const onVal = btn.dataset.on;
-                    const current = s[prop];
-                    const isActive = String(current).includes(onVal) || (onVal === 'bold' && (current === '700' || current === 'bold'));
-
-                    if (isActive) btn.classList.add('active');
-                    else btn.classList.remove('active');
-                });
-
-                // 4. Update Border UI Manually (Composite property)
-                const bw = parseInt(s.borderTopWidth) || 0;
-                document.getElementById('border-width').value = bw;
-                document.getElementById('border-style').value = s.borderTopStyle === 'none' ? 'none' : s.borderTopStyle;
-                document.getElementById('border-color').value = app.rgbToHex(s.borderTopColor);
-
-                // 5. Visibility Controls
-                const flexControls = document.getElementById('flex-controls');
-                if (s.display === 'flex' || s.display === 'inline-flex') {
-                    flexControls.classList.remove('hidden');
-                } else {
-                    flexControls.classList.add('hidden');
-                }
+            historyStack.push(html);
+            historyIndex++;
+            if (historyStack.length > MAX_HISTORY) {
+                historyStack.shift();
+                historyIndex--;
             }
         }
 
-        // --- Main Application Logic ---
-        const app = {
-            iframe: document.getElementById('content-frame'),
-            doc: null,
-            selectedEl: null,
-            gui: null,
-            historyStack: [],
-            historyIndex: -1,
-            MAX_HISTORY: 40,
-
-            // Icons
-            commonIcons: [
-                'fa-solid fa-user', 'fa-solid fa-house', 'fa-solid fa-magnifying-glass', 'fa-solid fa-bars', 'fa-solid fa-gear',
-                'fa-solid fa-check', 'fa-solid fa-xmark', 'fa-solid fa-trash', 'fa-solid fa-pen', 'fa-solid fa-image',
-                'fa-solid fa-heart', 'fa-solid fa-star', 'fa-solid fa-thumbs-up', 'fa-solid fa-share', 'fa-solid fa-envelope',
-                'fa-solid fa-arrow-right', 'fa-solid fa-chevron-right', 'fa-solid fa-phone', 'fa-solid fa-location-dot',
-                'fa-brands fa-facebook', 'fa-brands fa-twitter', 'fa-brands fa-instagram', 'fa-brands fa-github', 'fa-brands fa-youtube'
-            ],
-
-            init: function () {
-                // File Upload Listener
-                document.getElementById('file-upload').addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = (evt) => this.loadContent(evt.target.result);
-                    reader.readAsText(file);
-                });
-
-                // Image Changer Listener
-                document.getElementById('img-changer').addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (file && this.selectedEl && this.selectedEl.tagName === 'IMG') {
-                        const reader = new FileReader();
-                        reader.onload = (evt) => {
-                            this.selectedEl.src = evt.target.result;
-                            this.updateSidebarUI();
-                            this.saveState();
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                    e.target.value = '';
-                });
-
-                // Initialize GUI Manager
-                this.gui = new GUIManager();
-            },
-
-            loadContent: function (html, isHistoryOp = false) {
-                if (!html.includes('font-awesome')) {
-                    const faCDN = '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">';
-                    html = html.replace(/<head>/i, '<head>\n' + faCDN) || faCDN + html;
-                }
-
-                this.doc = this.iframe.contentDocument || this.iframe.contentWindow.document;
-                this.doc.open();
-                this.doc.write(html);
-                this.doc.close();
-
-                this.iframe.onload = () => {
-                    this.doc = this.iframe.contentDocument || this.iframe.contentWindow.document;
-                    this.injectEditorStyles();
-                    this.enableEditing();
-                    this.renderIconGrid();
-
-                    if (!isHistoryOp) {
-                        this.selectedEl = null;
-                        this.updateSidebarUI();
-                        setTimeout(() => this.saveState(), 100);
-                    } else {
-                        this.selectedEl = null;
-                        this.updateSidebarUI();
-                    }
-                };
-            },
-
-            injectEditorStyles: function () {
-                if (!this.doc) return;
-                if (!this.doc.querySelector('link[href*="font-awesome"]')) {
-                    const faLink = this.doc.createElement('link');
-                    faLink.rel = 'stylesheet';
-                    faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
-                    (this.doc.head || this.doc.body).appendChild(faLink);
-                }
-
-                if (this.doc.getElementById('visual-editor-style')) return;
-
-                const style = this.doc.createElement('style');
-                style.id = 'visual-editor-style';
-                style.innerHTML = `
-                    .ve-hover:hover { outline: 2px dashed #60a5fa !important; cursor: pointer; opacity: 0.95; }
-                    .ve-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; z-index: 9999; box-shadow: 0 0 0 4px rgba(37,99,235,0.2); }
-                    a { pointer-events: none; }
-                    *:empty:not(img):not(br):not(hr):not(i)::before { content: 'Empty Box'; color: #ccc; font-size: 10px; display: block; background: #f8f8f8; padding: 2px; }
-                    i { cursor: pointer; caret-color: transparent; } 
-                `;
-                this.doc.head.appendChild(style);
-            },
-
-            enableEditing: function () {
-                const allElements = this.doc.body.getElementsByTagName('*');
-                const skipTags = ['SCRIPT', 'STYLE', 'LINK', 'META', 'TITLE', 'BR', 'HR'];
-
-                for (let el of allElements) {
-                    if (skipTags.includes(el.tagName)) continue;
-                    el.classList.add('ve-hover');
-
-                    if (el.tagName !== 'IMG') {
-                        el.contentEditable = "true";
-                        if (el.tagName === 'I') {
-                            el.addEventListener('keydown', (e) => e.preventDefault());
-                            el.addEventListener('paste', (e) => e.preventDefault());
-                            el.addEventListener('input', (e) => e.preventDefault());
-                        } else {
-                            el.addEventListener('blur', () => this.saveState());
-                            el.addEventListener('paste', (e) => {
-                                e.preventDefault();
-                                const text = (e.originalEvent || e).clipboardData.getData('text/plain');
-                                this.doc.execCommand("insertText", false, text);
-                            });
-                        }
-                    }
-
-                    el.onclick = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        this.selectElement(el);
-                    };
-                }
-
-                this.doc.body.onclick = (e) => {
-                    if (e.target === this.doc.body) this.selectElement(this.doc.body);
-                }
-            },
-
-            selectElement: function (el) {
-                if (this.selectedEl) this.selectedEl.classList.remove('ve-selected');
-                this.selectedEl = el;
-                this.selectedEl.classList.add('ve-selected');
-                this.updateSidebarUI();
-            },
-
-            deselectAll: function (e) {
-                if (e.target.id === 'editor-canvas') {
-                    if (this.selectedEl) this.selectedEl.classList.remove('ve-selected');
-                    this.selectedEl = null;
-                    this.updateSidebarUI();
-                }
-            },
-
-            updateSidebarUI: function () {
-                const display = document.getElementById('selected-tag-display');
-                const imgControls = document.getElementById('img-control-group');
-                const iconPanel = document.getElementById('icon-panel');
-
-                if (!this.selectedEl) {
-                    display.innerText = "none";
-                    imgControls.style.display = 'none';
-                    iconPanel.classList.add('hidden');
-                    // GUI Manager will handle disabling/resetting logic if needed
-                    return;
-                }
-
-                // Tag Info
-                let tagName = this.selectedEl.tagName.toLowerCase();
-                if (this.selectedEl.id) tagName += `#${this.selectedEl.id}`;
-                display.innerText = `<${tagName}>`;
-
-                // Panels
-                if (this.selectedEl.tagName === 'I') iconPanel.classList.remove('hidden');
-                else iconPanel.classList.add('hidden');
-
-                if (this.selectedEl.tagName === 'IMG') {
-                    imgControls.style.display = 'block';
-                    document.getElementById('input-src').value = this.selectedEl.getAttribute('src');
-                } else {
-                    imgControls.style.display = 'none';
-                }
-
-                // Advanced
-                document.getElementById('input-classes').value = this.selectedEl.className.replace('ve-hover', '').replace('ve-selected', '').trim();
-                document.getElementById('input-html').value = this.selectedEl.outerHTML;
-
-                // ★ GUI Manager Sync Call ★
-                this.gui.syncUI(this.selectedEl);
-            },
-
-            // --- History System ---
-            saveState: function () {
-                if (!this.doc) return;
-                const style = this.doc.getElementById('visual-editor-style');
-                if (style) style.remove();
-                const selected = this.doc.querySelector('.ve-selected');
-                if (selected) selected.classList.remove('ve-selected');
-
-                const html = this.doc.documentElement.outerHTML;
-
-                this.injectEditorStyles();
-                if (this.selectedEl && this.doc.contains(this.selectedEl)) {
-                    this.selectedEl.classList.add('ve-selected');
-                }
-
-                if (this.historyIndex < this.historyStack.length - 1) {
-                    this.historyStack = this.historyStack.slice(0, this.historyIndex + 1);
-                }
-                this.historyStack.push(html);
-                this.historyIndex++;
-                if (this.historyStack.length > this.MAX_HISTORY) {
-                    this.historyStack.shift();
-                    this.historyIndex--;
-                }
-            },
-
-            undo: function () {
-                if (this.historyIndex > 0) {
-                    this.historyIndex--;
-                    this.loadContent(this.historyStack[this.historyIndex], true);
-                }
-            },
-
-            redo: function () {
-                if (this.historyIndex < this.historyStack.length - 1) {
-                    this.historyIndex++;
-                    this.loadContent(this.historyStack[this.historyIndex], true);
-                }
-            },
-
-            // --- Style Actions ---
-            applyStyle: function (prop, value) {
-                if (!this.selectedEl) return;
-                this.selectedEl.style[prop] = value;
-                this.saveState();
-            },
-
-            toggleStyle: function (prop, valOn, valOff) {
-                if (!this.selectedEl) return;
-                const current = window.getComputedStyle(this.selectedEl)[prop];
-                const isSet = String(current).includes(valOn) || (valOn === 'bold' && current === '700');
-                this.selectedEl.style[prop] = isSet ? valOff : valOn;
-                this.updateSidebarUI();
-                this.saveState();
-            },
-
-            applyAttribute: function (attr, value) {
-                if (!this.selectedEl) return;
-                this.selectedEl.setAttribute(attr, value);
-                this.saveState();
-            },
-
-            applyClasses: function (value) {
-                if (!this.selectedEl) return;
-                const internalClasses = ['ve-hover', 've-selected'];
-                this.selectedEl.className = value + ' ' + internalClasses.join(' ');
-                this.saveState();
-            },
-
-            // --- Icon Logic ---
-            renderIconGrid: function (filter = '') {
-                const container = document.getElementById('icon-grid-container');
-                container.innerHTML = '';
-                const filtered = this.commonIcons.filter(c => c.includes(filter.toLowerCase()));
-                filtered.forEach(iconClass => {
-                    const btn = document.createElement('div');
-                    btn.className = 'icon-btn';
-                    btn.innerHTML = `<i class="${iconClass}"></i>`;
-                    btn.onclick = () => this.applyIcon(iconClass);
-                    container.appendChild(btn);
-                });
-            },
-
-            applyIcon: function (newClass) {
-                if (!this.selectedEl || this.selectedEl.tagName !== 'I') return;
-                const internalClasses = ['ve-hover', 've-selected'];
-                this.selectedEl.className = newClass + ' ' + internalClasses.join(' ');
-                this.updateSidebarUI();
-                this.saveState();
-            },
-
-            // --- Misc Utils ---
-            selectParent: function () {
-                if (this.selectedEl && this.selectedEl.parentElement && this.selectedEl.parentElement !== this.doc.documentElement) {
-                    this.selectElement(this.selectedEl.parentElement);
-                }
-            },
-
-            deleteSelected: function () {
-                if (!this.selectedEl) return;
-                if (confirm('삭제하시겠습니까?')) {
-                    this.selectedEl.remove();
-                    this.selectedEl = null;
-                    this.updateSidebarUI();
-                    this.saveState();
-                }
-            },
-
-            cloneSelected: function () {
-                if (!this.selectedEl) return;
-                const clone = this.selectedEl.cloneNode(true);
-                clone.classList.remove('ve-selected');
-                this.selectedEl.insertAdjacentElement('afterend', clone);
-                this.saveState();
-                this.enableEditing();
-            },
-
-            toggleHtmlEdit: function () {
-                document.getElementById('input-html').classList.toggle('hidden');
-            },
-
-            applyOuterHTML: function (value) {
-                if (!this.selectedEl) return;
-                try {
-                    const temp = this.doc.createElement('div');
-                    temp.innerHTML = value;
-                    const newEl = temp.firstElementChild;
-                    if (!newEl) return;
-                    this.selectedEl.replaceWith(newEl);
-                    this.selectedEl = newEl;
-                    this.injectEditorStyles();
-                    this.enableEditing();
-                    this.selectElement(this.selectedEl);
-                    this.saveState();
-                } catch (e) { alert("HTML 오류"); }
-            },
-
-            saveHTML: function () {
-                if (!this.doc) return;
-                const style = this.doc.getElementById('visual-editor-style');
-                if (style) style.remove();
-                const selected = this.doc.querySelector('.ve-selected');
-                if (selected) selected.classList.remove('ve-selected');
-                const hovers = this.doc.querySelectorAll('.ve-hover');
-                hovers.forEach(el => el.classList.remove('ve-hover'));
-                const editables = this.doc.querySelectorAll('[contenteditable]');
-                editables.forEach(el => el.removeAttribute('contenteditable'));
-
-                const htmlContent = this.doc.documentElement.outerHTML;
-                const blob = new Blob([htmlContent], { type: "text/html" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = "edited_page_v04.html";
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-
-                this.injectEditorStyles();
-                this.enableEditing();
-                if (selected) selected.classList.add('ve-selected');
-            },
-
-            setDevice: function (type) {
-                this.iframe.className = type;
-            },
-
-            rgbToHex: function (rgb) {
-                if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return '#ffffff';
-                if (rgb.startsWith('#')) return rgb;
-                const rgbValues = rgb.match(/\d+/g);
-                if (!rgbValues) return '#000000';
-                return "#" + ((1 << 24) + (parseInt(rgbValues[0]) << 16) + (parseInt(rgbValues[1]) << 8) + parseInt(rgbValues[2])).toString(16).slice(1);
-            },
-
-            getFontFamilyValue: function (val) {
-                if (!val) return "";
-                if (val.includes('Jua')) return "'Jua', sans-serif";
-                if (val.includes('Comfortaa')) return "'Comfortaa', cursive";
-                if (val.includes('sans-serif')) return "sans-serif";
-                if (val.includes('serif')) return "serif";
-                if (val.includes('monospace')) return "monospace";
-                return "";
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                loadContent(historyStack[historyIndex], true);
             }
-        };
+        }
 
-        // --- Init ---
+        function redo() {
+            if (historyIndex < historyStack.length - 1) {
+                historyIndex++;
+                loadContent(historyStack[historyIndex], true);
+            }
+        }
+
+        // --- Core ---
+        document.getElementById('file-upload').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => loadContent(e.target.result);
+            reader.readAsText(file);
+        });
+
+        function loadContent(html, isHistoryOp = false) {
+            if (!html.includes('font-awesome')) {
+                const faCDN = '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">';
+                if (html.toLowerCase().includes('<head>')) {
+                    html = html.replace(/<head>/i, '<head>\n' + faCDN);
+                } else {
+                    html = faCDN + html;
+                }
+            }
+
+            doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(html);
+            doc.close();
+
+            iframe.onload = function () {
+                doc = iframe.contentDocument || iframe.contentWindow.document;
+                injectEditorStyles();
+                enableEditing();
+
+                // Initialize Icon Grid
+                renderIconGrid();
+
+                if (!isHistoryOp) {
+                    selectedEl = null;
+                    updateSidebarUI();
+                    setTimeout(() => saveState(), 100);
+                } else {
+                    selectedEl = null;
+                    updateSidebarUI();
+                }
+            };
+        }
+
+        function injectEditorStyles() {
+            if (!doc) return;
+            if (!doc.querySelector('link[href*="font-awesome"]')) {
+                const faLink = doc.createElement('link');
+                faLink.rel = 'stylesheet';
+                faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
+                (doc.head || doc.body).appendChild(faLink);
+            }
+
+            if (doc.getElementById('visual-editor-style')) return;
+
+            const style = doc.createElement('style');
+            style.id = 'visual-editor-style';
+            style.innerHTML = `
+                .ve-hover:hover { outline: 2px dashed #60a5fa !important; cursor: pointer; opacity: 0.95; }
+                .ve-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; z-index: 9999; box-shadow: 0 0 0 4px rgba(37,99,235,0.2); }
+                a { pointer-events: none; }
+                *:empty:not(img):not(br):not(hr):not(i)::before { content: 'Empty Box'; color: #ccc; font-size: 10px; display: block; background: #f8f8f8; padding: 2px; }
+                i { cursor: pointer; caret-color: transparent; } 
+            `;
+            doc.head.appendChild(style);
+        }
+
+        function enableEditing() {
+            const allElements = doc.body.getElementsByTagName('*');
+            const skipTags = ['SCRIPT', 'STYLE', 'LINK', 'META', 'TITLE', 'BR', 'HR'];
+
+            for (let el of allElements) {
+                if (skipTags.includes(el.tagName)) continue;
+
+                el.classList.add('ve-hover');
+
+                if (el.veListenersAttached) continue;
+                el.veListenersAttached = true;
+
+                if (el.tagName !== 'IMG') {
+                    // 아이콘도 클릭 가능하도록 contentEditable은 true로 설정
+                    el.contentEditable = "true";
+
+                    // 아이콘(i 태그)은 텍스트 편집만 방지
+                    if (el.tagName === 'I') {
+                        el.addEventListener('keydown', (e) => e.preventDefault());
+                        el.addEventListener('paste', (e) => e.preventDefault());
+                        el.addEventListener('cut', (e) => e.preventDefault());
+                        el.addEventListener('input', (e) => e.preventDefault());
+                    } else {
+                        // 일반 요소는 변경 감지
+                        el.addEventListener('blur', () => saveState());
+                        el.addEventListener('paste', (e) => {
+                            e.preventDefault();
+                            const text = (e.originalEvent || e).clipboardData.getData('text/plain');
+                            doc.execCommand("insertText", false, text);
+                        });
+                    }
+                }
+
+                el.onclick = function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    selectElement(el);
+                };
+            }
+
+            doc.body.onclick = function (e) {
+                if (e.target === doc.body) selectElement(doc.body);
+            }
+        }
+
+        // --- Selection & UI Sync ---
+        function selectElement(el) {
+            if (selectedEl) selectedEl.classList.remove('ve-selected');
+            selectedEl = el;
+            selectedEl.classList.add('ve-selected');
+            updateSidebarUI();
+        }
+
+        function selectParent() {
+            if (selectedEl && selectedEl.parentElement && selectedEl.parentElement !== doc.documentElement) {
+                selectElement(selectedEl.parentElement);
+            }
+        }
+
+        function deselectAll(e) {
+            if (e.target.id === 'editor-canvas') {
+                if (selectedEl) selectedEl.classList.remove('ve-selected');
+                selectedEl = null;
+                updateSidebarUI();
+            }
+        }
+
+        function updateSidebarUI() {
+            const display = document.getElementById('selected-tag-display');
+            const flexControls = document.getElementById('flex-controls');
+            const imgControls = document.getElementById('img-control-group');
+            const iconPanel = document.getElementById('icon-panel'); // 🟢
+
+            if (!selectedEl) {
+                display.innerText = "none";
+                flexControls.classList.add('hidden');
+                imgControls.style.display = 'none';
+                iconPanel.classList.add('hidden'); // 아이콘 패널 숨김
+                return;
+            }
+
+            // 1. Tag Info
+            let tagName = selectedEl.tagName.toLowerCase();
+            if (selectedEl.id) tagName += `#${selectedEl.id}`;
+            display.innerText = `<${tagName}>`;
+
+            // 🟢 Icon Panel Control
+            if (selectedEl.tagName === 'I') {
+                iconPanel.classList.remove('hidden');
+            } else {
+                iconPanel.classList.add('hidden');
+            }
+
+            // Computed Style
+            const s = window.getComputedStyle(selectedEl);
+            const styleRaw = selectedEl.style;
+
+            // 2. Typography
+            setInputValue('input-font-family', getFontFamilyValue(s.fontFamily));
+            setInputValue('input-color', rgbToHex(s.color));
+            document.getElementById('text-color-val').innerText = rgbToHex(s.color);
+            setInputValue('input-font-size', parseInt(s.fontSize) || '');
+            setInputValue('input-line-height', s.lineHeight === 'normal' ? '' : parseFloat(s.lineHeight));
+
+            updateBtnGroup('textAlign', s.textAlign);
+            updateBtnToggle('fontWeight', s.fontWeight, ['bold', '700']);
+            updateBtnToggle('fontStyle', s.fontStyle, ['italic']);
+            updateBtnToggle('textDecoration', s.textDecorationLine, ['underline']);
+
+            // 3. Layout
+            setInputValue('input-display', s.display);
+            if (s.display === 'flex' || s.display === 'inline-flex') {
+                flexControls.classList.remove('hidden');
+                setInputValue('input-justify', s.justifyContent);
+                setInputValue('input-align', s.alignItems);
+                setInputValue('input-gap', styleRaw.gap || s.gap);
+            } else {
+                flexControls.classList.add('hidden');
+            }
+
+            setInputValue('input-padding', styleRaw.padding || s.padding);
+            setInputValue('input-margin', styleRaw.margin || s.margin);
+            setInputValue('input-width', styleRaw.width || (s.width !== 'auto' ? s.width : ''));
+            setInputValue('input-height', styleRaw.height || (s.height !== 'auto' ? s.height : ''));
+
+            // 4. Decoration
+            let bgCol = s.backgroundColor;
+            if (bgCol === 'rgba(0, 0, 0, 0)' || !bgCol) bgCol = 'transparent';
+            setInputValue('input-bg-color', rgbToHex(bgCol));
+            document.getElementById('bg-color-val').innerText = rgbToHex(bgCol);
+
+            const rad = parseInt(s.borderRadius) || 0;
+            document.getElementById('input-radius').value = rad;
+            document.getElementById('radius-val').innerText = rad + 'px';
+
+            const bw = parseInt(s.borderTopWidth) || 0;
+            setInputValue('input-border-width', bw);
+            setInputValue('input-border-style', s.borderTopStyle === 'none' ? 'none' : s.borderTopStyle);
+            setInputValue('input-classes', selectedEl.className.replace('ve-hover', '').replace('ve-selected', '').trim());
+            setInputValue('input-html', selectedEl.outerHTML);
+        }
+
+        // --- Icon Logic (New) ---
+        function renderIconGrid(filter = '') {
+            const container = document.getElementById('icon-grid-container');
+            container.innerHTML = '';
+
+            const filtered = commonIcons.filter(c => c.includes(filter.toLowerCase()));
+
+            filtered.forEach(iconClass => {
+                const btn = document.createElement('div');
+                btn.className = 'icon-btn';
+                btn.innerHTML = `<i class="${iconClass}"></i>`;
+                btn.onclick = () => applyIcon(iconClass);
+                container.appendChild(btn);
+            });
+        }
+
+        function filterIcons(val) {
+            renderIconGrid(val);
+        }
+
+        function applyIcon(newClass) {
+            if (!selectedEl || selectedEl.tagName !== 'I') return;
+            // ve-hover, ve-selected 등의 내부 클래스는 유지
+            const internalClasses = ['ve-hover', 've-selected'];
+            // 기존 클래스 중 내부 클래스만 남기고 다 제거한 뒤 새 아이콘 클래스 추가
+            selectedEl.className = newClass + ' ' + internalClasses.join(' ');
+
+            // 시각적 피드백
+            updateSidebarUI();
+            saveState();
+        }
+
+
+        // Helpers
+        function setInputValue(id, val) {
+            const el = document.getElementById(id);
+            if (el) el.value = val;
+        }
+
+        function getFontFamilyValue(val) {
+            if (!val) return "";
+            if (val.includes('Jua')) return "'Jua', sans-serif";
+            if (val.includes('Comfortaa')) return "'Comfortaa', cursive";
+            if (val.includes('sans-serif')) return "sans-serif";
+            if (val.includes('serif')) return "serif";
+            if (val.includes('monospace')) return "monospace";
+            return "";
+        }
+
+        function updateBtnGroup(prop, val) {
+            ['left', 'center', 'right', 'justify'].forEach(k => {
+                const btn = document.getElementById(`btn-align-${k}`);
+                if (btn) {
+                    if (val === k) btn.classList.add('active');
+                    else btn.classList.remove('active');
+                }
+            });
+        }
+
+        function updateBtnToggle(prop, val, matches) {
+            let btnId = '';
+            if (prop === 'fontWeight') btnId = 'btn-bold';
+            if (prop === 'fontStyle') btnId = 'btn-italic';
+            if (prop === 'textDecoration') btnId = 'btn-underline';
+
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                const isActive = matches.some(m => String(val).includes(m));
+                if (isActive) btn.classList.add('active');
+                else btn.classList.remove('active');
+            }
+        }
+
+        function rgbToHex(rgb) {
+            if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return '#ffffff';
+            if (rgb.startsWith('#')) return rgb;
+            const rgbValues = rgb.match(/\d+/g);
+            if (!rgbValues) return '#000000';
+            return "#" + ((1 << 24) + (parseInt(rgbValues[0]) << 16) + (parseInt(rgbValues[1]) << 8) + parseInt(rgbValues[2])).toString(16).slice(1);
+        }
+
+        // --- Apply Logic ---
+        function applyStyle(prop, value) {
+            if (!selectedEl) return;
+            selectedEl.style[prop] = value;
+            if (prop === 'backgroundColor') document.getElementById('bg-color-val').innerText = rgbToHex(value);
+            if (prop === 'color') document.getElementById('text-color-val').innerText = rgbToHex(value);
+            if (prop === 'display') updateSidebarUI();
+            saveState();
+        }
+
+        function toggleStyle(prop, valOn, valOff) {
+            if (!selectedEl) return;
+            const current = window.getComputedStyle(selectedEl)[prop];
+            const isSet = String(current).includes(valOn) || (valOn === 'bold' && current === '700');
+            selectedEl.style[prop] = isSet ? valOff : valOn;
+            updateSidebarUI();
+            saveState();
+        }
+
+        function updateBorder() {
+            if (!selectedEl) return;
+            const w = document.getElementById('input-border-width').value;
+            const s = document.getElementById('input-border-style').value;
+            const c = document.getElementById('input-border-color').value;
+
+            if (s === 'none') {
+                selectedEl.style.border = 'none';
+            } else {
+                const width = w ? w + 'px' : '1px';
+                selectedEl.style.border = `${width} ${s} ${c}`;
+            }
+            saveState();
+        }
+
+        function applyAttribute(attr, value) {
+            if (!selectedEl) return;
+            selectedEl.setAttribute(attr, value);
+            saveState();
+            updateSidebarUI();
+        }
+
+        function applyClasses(value) {
+            if (!selectedEl) return;
+            const internalClasses = ['ve-hover', 've-selected'];
+            selectedEl.className = value + ' ' + internalClasses.join(' ');
+            saveState();
+        }
+
+        function toggleHtmlEdit() {
+            const area = document.getElementById('input-html');
+            area.classList.toggle('hidden');
+        }
+
+        function applyOuterHTML(value) {
+            if (!selectedEl) return;
+            try {
+                const temp = doc.createElement('div');
+                temp.innerHTML = value;
+                const newEl = temp.firstElementChild;
+                if (!newEl) return;
+
+                selectedEl.replaceWith(newEl);
+                selectedEl = newEl;
+                injectEditorStyles();
+                enableEditing();
+
+                selectElement(selectedEl);
+                saveState();
+            } catch (e) {
+                alert("HTML ?ㅻ쪟");
+            }
+        }
+
+        function deleteSelected() {
+            if (!selectedEl) return;
+            if (confirm('??젣?섏떆寃좎뒿?덇퉴?')) {
+                selectedEl.remove();
+                selectedEl = null;
+                updateSidebarUI();
+                saveState();
+            }
+        }
+
+        function cloneSelected() {
+            if (!selectedEl) return;
+            const clone = selectedEl.cloneNode(true);
+            clone.classList.remove('ve-selected');
+            selectedEl.insertAdjacentElement('afterend', clone);
+            saveState();
+            enableEditing();
+        }
+
+        document.getElementById('img-changer').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (file && selectedEl && selectedEl.tagName === 'IMG') {
+                const reader = new FileReader();
+                reader.onload = function (evt) {
+                    selectedEl.src = evt.target.result;
+                    updateSidebarUI();
+                    saveState();
+                };
+                reader.readAsDataURL(file);
+            }
+            this.value = '';
+        });
+
+        function saveHTML() {
+            if (!doc) return;
+            const style = doc.getElementById('visual-editor-style');
+            if (style) style.remove();
+            const selected = doc.querySelector('.ve-selected');
+            if (selected) selected.classList.remove('ve-selected');
+            
+            const html = doc.documentElement.outerHTML;
+            const blob = new Blob([html], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'index.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            injectEditorStyles();
+            enableEditing();
+            if (selected) selected.classList.add('ve-selected');
+        }
+
+        function setDevice(type) {
+            iframe.className = type;
+        }
+
         window.onload = function () {
-            app.init();
-
-            // 데모 로드
+            // ?곕え 濡쒕뱶 (Jelly Mix ?뚮쭏 留쏅낫湲?
             const demoHTML = `
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jelly Mix - 寃뚯엫 ?붿옄??湲고쉷??/title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&family=Jua&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        body{display:flex;justify-content:center;align-items:center;height:100vh;font-family:'Jua',sans-serif;background:#fff0f6;margin:0;} 
-        .card{background:white;padding:50px;border-radius:40px;box-shadow:0 20px 50px rgba(255, 118, 117, 0.2);text-align:center;width:400px;border:8px solid #fff;}
-        h1{color:#a29bfe;font-size:48px;margin:0 0 20px 0;text-shadow:2px 2px 0 #dfe6e9;}
-        p{color:#636e72;font-size:20px;line-height:1.6;}
-        .btn{background:#74b9ff;color:white;padding:15px 30px;font-size:24px;border-radius:50px;border:none;margin-top:30px;display:inline-block;box-shadow:0 10px 20px rgba(116, 185, 255, 0.4);}
-        i.icon-demo { font-size: 60px; color: #ff7675; margin-bottom: 20px; }
+/* 1. JELLY THEME SETUP */
+:root {
+    --jelly-red: #ff9f9f;
+    --jelly-orange: #ffc048;
+    --jelly-yellow: #fff200;
+    --jelly-green: #55efc4;
+    --jelly-blue: #74b9ff;
+    --jelly-purple: #a29bfe;
+    --text-dark: #2d3436;
+    --text-soft: #636e72;
+    --bg-cream: #fff0f6;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    background-color: #ffeaa7;
+    background-image: radial-gradient(#fab1a0 20%, transparent 20%), radial-gradient(#fafafa 20%, transparent 20%);
+    background-position: 0 0, 50px 50px;
+    background-size: 100px 100px;
+    margin: 0;
+    padding: 40px 0;
+    font-family: 'Jua', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+}
+
+/* 2. SLIDE CONTAINER STYLE */
+.slide-container {
+    background-color: rgba(255, 255, 255, 0.95);
+    width: 1280px;
+    height: 720px;
+    border-radius: 50px;
+    box-shadow: 0 20px 50px rgba(255, 118, 117, 0.2);
+    border: 8px solid #fff;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 60px;
+    transition: transform 0.3s ease;
+}
+
+.slide-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 25px 60px rgba(255, 118, 117, 0.3);
+}
+
+/* 3. TYPOGRAPHY & ELEMENTS */
+h1, h2, h3 {
+    font-family: 'Jua', sans-serif;
+    letter-spacing: 1px;
+}
+
+h2.slide-title {
+    font-size: 56px;
+    color: var(--jelly-purple);
+    margin: 0 0 40px 0;
+    text-shadow: 3px 3px 0px #dfe6e9;
+    position: relative;
+    display: inline-block;
+}
+
+h2.slide-title::after {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 15px;
+    background: var(--jelly-green);
+    opacity: 0.4;
+    border-radius: 10px;
+    position: absolute;
+    bottom: 8px;
+    left: 0;
+    z-index: -1;
+    transform: skewX(-10deg);
+}
+
+p, li {
+    font-size: 26px;
+    color: var(--text-soft);
+    line-height: 1.5;
+}
+
+/* 4. LAYOUT HELPERS */
+.content-area {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.two-column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+}
+
+.tiled-content {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+}
+
+/* 5. JELLY CARDS (TILES) */
+.jelly-card {
+    background: white;
+    border-radius: 35px;
+    padding: 30px;
+    flex: 1;
+    text-align: center;
+    border: 4px solid #f1f2f6;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.jelly-card:hover {
+    transform: scale(1.05) rotate(1deg);
+    border-color: var(--jelly-blue);
+}
+
+.jelly-card .icon {
+    font-size: 50px;
+    margin-bottom: 20px;
+    background: var(--bg-cream);
+    width: 100px;
+    height: 100px;
+    line-height: 100px;
+    border-radius: 50%;
+    display: inline-block;
+    color: var(--jelly-purple);
+}
+
+.jelly-card h3 {
+    font-size: 32px;
+    color: var(--text-dark);
+    margin-bottom: 10px;
+}
+
+/* 6. TITLE SLIDE SPECIAL */
+.title-slide {
+    text-align: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #fff0f6 0%, #e8f7ff 100%);
+}
+
+.title-text {
+    font-size: 110px;
+    font-family: 'Comfortaa', cursive;
+    font-weight: 700;
+    background: linear-gradient(to right, var(--jelly-red), var(--jelly-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.1));
+    margin: 0;
+    animation: jelly-bounce 2s infinite;
+}
+
+.subtitle {
+    font-size: 42px;
+    color: var(--jelly-blue);
+    margin-top: 10px;
+    font-weight: normal;
+}
+
+@keyframes jelly-bounce {
+    0%, 100% { transform: scale(1, 1); }
+    25% { transform: scale(0.9, 1.1); }
+    50% { transform: scale(1.1, 0.9); }
+    75% { transform: scale(0.95, 1.05); }
+}
+
+/* 7. IMAGES & WRAPPERS */
+.soft-img-frame {
+    border-radius: 40px;
+    overflow: hidden;
+    box-shadow: 10px 10px 0px var(--jelly-orange);
+    border: 5px solid #fff;
+    height: 400px;
+    width: 100%;
+}
+
+.soft-img-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* 8. LIST STYLES */
+ul.jelly-list {
+    list-style: none;
+    padding: 0;
+}
+
+ul.jelly-list li {
+    margin-bottom: 15px;
+    padding-left: 45px;
+    position: relative;
+    font-size: 26px;
+}
+
+ul.jelly-list li::before {
+    content: '?뜮';
+    position: absolute;
+    left: 0;
+    top: 0px;
+    font-size: 28px;
+}
+
+/* 9. COLOR MIXING SECTION */
+.color-mix-row {
+    display: flex;
+    align-items: center;
+    font-size: 30px;
+    margin-bottom: 20px;
+    background: #fff;
+    padding: 15px 30px;
+    border-radius: 50px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
+
+.blob-deco {
+    position: absolute;
+    z-index: 0;
+    opacity: 0.6;
+}
+.blob-1 { top: -50px; left: -50px; color: var(--jelly-red); font-size: 300px; }
+.blob-2 { bottom: -50px; right: -50px; color: var(--jelly-blue); font-size: 300px; }
+
+/* 10. SCENARIO SPECIFIC STYLES (Refactored to Explicit Classes) */
+.scenario-step {
+    background: white;
+    padding: 20px 30px;
+    border-radius: 30px;
+    margin-bottom: 25px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.03);
+    position: relative;
+    border: 0 solid transparent; /* 珥덇린??*/
+}
+
+.scenario-step h3 {
+    margin: 0 0 10px 0;
+    font-size: 28px;
+}
+
+/* --- 諛⑺뼢 ?대옒??(Layout/Logic) --- */
+.dir-left {
+    border-left-width: 8px;
+    border-right-width: 0;
+}
+
+.dir-right {
+    border-left-width: 0;
+    border-right-width: 8px;
+}
+
+/* --- ?됱긽 ?대옒??(Theme/Variable) --- */
+.theme-green { border-color: var(--jelly-green); }
+.theme-green h3 { color: var(--jelly-green); }
+
+.theme-orange { border-color: var(--jelly-orange); }
+.theme-orange h3 { color: var(--jelly-orange); }
+
+.theme-purple { border-color: var(--jelly-purple); }
+.theme-purple h3 { color: var(--jelly-purple); }
+
+
+/* 11. PRINT & PDF BUTTON STYLES */
+.print-btn-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.print-btn {
+    background-color: var(--jelly-purple);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-family: 'Jua', sans-serif;
+    font-size: 20px;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(162, 155, 254, 0.4);
+    transition: transform 0.2s, background-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.print-btn:hover {
+    transform: translateY(-3px);
+    background-color: #8e84f5;
+}
+
+.print-btn:active {
+    transform: translateY(0);
+}
+
+@media print {
+    @page { size: landscape; margin: 0; }
+    body { background: white !important; padding: 0; margin: 0; display: block; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .print-btn-container { display: none !important; }
+    .slide-container { width: 100%; height: 100vh; margin: 0; border: none; border-radius: 0; box-shadow: none; page-break-after: always; break-after: page; transform: none !important; }
+    .slide-container:last-child { page-break-after: avoid; break-after: avoid; }
+}
     </style>
 </head>
 <body>
-    <div class="card">
-        <i class="fa-solid fa-wand-magic-sparkles icon-demo"></i>
-        <h1>GUIManager v0.04</h1>
-        <p>이제 코드 구조가<br><strong>이벤트 기반</strong>으로 변경되었습니다.<br>더 쉽고 강력하게 확장하세요!</p>
-        <button class="btn">시작하기</button>
+
+<div class="print-btn-container">
+    <button class="print-btn" onclick="window.print()">
+        <i class="fa-solid fa-print"></i> PDF ???/ ?몄뇙
+    </button>
+</div>
+
+<div class="slide-container title-slide" id="slide1">
+    <div class="blob-deco blob-1" style="filter: blur(60px);">燧?/div>
+    <div class="blob-deco blob-2" style="filter: blur(60px);">燧?/div>
+    <div style="z-index: 2;">
+        <h1 class="title-text">Jelly Mix</h1>
+        <p class="subtitle">留먮옉留먮옉 ?쇱쫹 ?대뱶踰ㅼ쿂</p>
+        <div style="margin-top: 60px; background: rgba(255,255,255,0.5); display: inline-block; padding: 10px 30px; border-radius: 30px;">
+            <p style="font-size: 22px; color: #636e72; margin: 0;">寃뚯엫 ?붿옄??臾몄꽌 v1.1</p>
+        </div>
     </div>
+</div>
+
+<div class="slide-container" id="slide2">
+    <h2 class="slide-title">?듭떖 ?붿빟</h2>
+    <div class="content-area">
+        <div class="tiled-content">
+            <div class="jelly-card" style="border-color: var(--jelly-red);">
+                <div class="icon" style="color: var(--jelly-red);"><i class="fa-solid fa-gamepad"></i></div>
+                <h3>?λⅤ</h3>
+                <p>?섏씠??罹먯＜???쇱쫹<br>?꾩??대뱶 ?꾨왂</p>
+            </div>
+            <div class="jelly-card" style="border-color: var(--jelly-blue);">
+                <div class="icon" style="color: var(--jelly-blue);"><i class="fa-solid fa-users"></i></div>
+                <h3>?寃?怨좉컼</h3>
+                <p>10~30? ?ъ꽦<br>洹?ъ슫嫄?醫뗭븘?섎뒗 遺?/p>
+            </div>
+            <div class="jelly-card" style="border-color: var(--jelly-yellow);">
+                <div class="icon" style="color: goldenrod;"><i class="fa-solid fa-star"></i></div>
+                <h3>?듭떖 ?щ?</h3>
+                <p>留먮옉??臾쇰━ ?붿쭊<br>?됱긽 議고빀??苡뚭컧</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide3">
+    <h2 class="slide-title">而⑥뀎: ?ㅻ━瑜??붾━?섏꽭??</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                <ul class="jelly-list">
+                    <li><strong>紐⑺몴:</strong> ?됱긽怨??ш린瑜??욎뼱<br>?꾨꼍???뺤젮由щ? 留뚮뱶?몄슂.</li>
+                    <li><strong>?≪뀡:</strong> ?ㅻ━ 怨곕룎?대?<br>誘몃걚?ъ????? ?대룞?쒗궢?덈떎.</li>
+                    <li><strong>諛섏쓳:</strong> ?묒? ?ㅻ━瑜?'??'?섍퀬 癒뱀쑝硫?br>紐몄쭛??而ㅼ?怨??됱씠 蹂?댁슂.</li>
+                    <li><strong>二쇱쓽:</strong> ?덈Т ?깅슧?댁?硫?br>醫곸? 臾몄쓣 紐?吏?섍???</li>
+                </ul>
+            </div>
+            <div class="soft-img-frame">
+                <img src="img/jellymix01.png" 
+                     alt="Cute gummy bears pattern"
+                     onerror="this.src='https://placehold.co/600x400/ff9f9f/ffffff?text=Jelly+Concept'">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide4">
+    <h2 class="slide-title">寃뚯엫 ?쒕굹由ъ삤</h2>
+    <div class="content-area two-column" style="grid-template-columns: 2fr 3fr;">
+        <div class="soft-img-frame" style="box-shadow: 10px 10px 0px var(--jelly-purple); background: white; padding: 20px; height: 350px;">
+            <img src="img/jellymix_story.jpg" 
+                 alt="Story illustration"
+                 style="object-fit: contain;"
+                 onerror="this.src='https://placehold.co/600x400/fff200/555555?text=Story+Sketch:+Gray+World+vs+Color'">
+        </div>
+        <div>
+            <div class="scenario-step dir-left theme-green">
+                <h3>1. ?꾨·濡쒓렇: ?뚯깋鍮쏆쓽 ?二?/h3>
+                <p style="font-size: 20px;">?ъ숴?섍퀬 ?뚮줉?щ줉?덈뜕 <strong>'?ㅻ━ ?밸뜡'</strong>??吏볤텂? 癒밴뎄由??좊졊??李얠븘? 紐⑤뱺 ?됯퉼??鍮⑥븘?ㅼ뿬 ?몄긽???뚯깋鍮쏆쑝濡?蹂?대쾭?몄뒿?덈떎.</p>
+            </div>
+            <div class="scenario-step dir-right theme-orange">
+                <h3>2. ?ъ젙: ?꾩꽕???덉떆??/h3>
+                <p style="font-size: 20px;">?좎씪?섍쾶 ?됱씠 ?⑥? <strong>'瑗щ쭏 ?ㅻ━'</strong>??二쇱씤怨? 怨좊? ?붾━梨낆뿉 ?곹엺?濡?移쒓뎄?ㅺ낵 ?섏쓣 ?⑹퀜(Mix) ?껋뼱踰꾨┛ ?됱쓣 ?섏갼?꾩빞 ?⑸땲??</p>
+            </div>
+            <div class="scenario-step dir-left theme-purple">
+                <h3>3. 紐⑺몴: 臾댁?媛??몃뜒?쇰줈!</h3>
+                <p style="font-size: 20px;">媛??ㅽ뀒?댁????됯퉼 遊됱씤???怨? 理쒖쥌?곸쑝濡??꾩꽕??<strong>'?덉씤蹂댁슦 ?ㅻ━'</strong>媛 ?섏뼱 ?뺢뎅??臾댁?媛쒕? ?꾩슦??寃껋씠 理쒖쥌 紐⑺몴?낅땲??</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide5">
+    <h2 class="slide-title">?쒖뒪?? ?됱긽 議고빀</h2>
+    <div class="content-area two-column">
+        <div>
+            <p style="margin-bottom: 30px;"><strong>CMY (臾쇨컧 ?욊린)</strong> 洹쒖튃???곕쫭?덈떎.<br>吏곴??곸씠怨?諛곗슦湲??ъ썙??</p>
+            <div class="color-mix-row"><span style="color:#ff7675">??鍮④컯</span> &nbsp;+&nbsp; <span style="color:#ffeaa7">???몃옉</span> &nbsp;=&nbsp; <span style="color:#e17055">??二쇳솴</span></div>
+            <div class="color-mix-row"><span style="color:#74b9ff">???뚮옉</span> &nbsp;+&nbsp; <span style="color:#ffeaa7">???몃옉</span> &nbsp;=&nbsp; <span style="color:#00b894">??珥덈줉</span></div>
+            <div class="color-mix-row"><span style="color:#ff7675">??鍮④컯</span> &nbsp;+&nbsp; <span style="color:#74b9ff">???뚮옉</span> &nbsp;=&nbsp; <span style="color:#a29bfe">??蹂대씪</span></div>
+            <p style="font-size: 20px; color: #b2bec3; margin-top: 20px;">???댁긽???됱쓣 ?욎쑝硫?"???ㅻ━(寃??"媛 ?섏뼱踰꾨젮???졼뀪</p>
+        </div>
+        <div class="soft-img-frame" style="box-shadow: -10px 10px 0px var(--jelly-blue); background: white; padding: 20px;">
+            <img src="img/jellymix02.png" 
+                 alt="Color mixing theory diagram"
+                 style="object-fit: contain;"
+                 onerror="this.src='https://placehold.co/600x400/74b9ff/ffffff?text=CMY+Mixing+Rule'">
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide6">
+    <h2 class="slide-title">?쒖뒪?? 留먮옉 臾쇰━ ?붿쭊</h2>
+    <div class="content-area two-column" style="grid-template-columns: 2fr 3fr;">
+        <div class="soft-img-frame" style="height: 350px;">
+            <img src="img/jellymix03.png" 
+                 alt="Soft body physics simulation abstract"
+                 onerror="this.src='https://placehold.co/600x400/a29bfe/ffffff?text=Soft+Body+Physics'">
+        </div>
+        <div>
+            <div style="background: #fff; padding: 20px; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 20px;">
+                <h3 style="color: var(--jelly-green); font-size: 32px; margin-top: 0;">Soft Body (?뚰봽??諛붾뵒)</h3>
+                <p style="font-size: 22px; margin-bottom: 0;">?ㅻ━???깅뵳?섏? ?딆븘??<br>踰쎌뿉 遺?ろ엳硫?<em>'?몃뵫~'</em> ?섍퀬 ?붾뱾由ш퀬,<br>醫곸? ?덉? <em>'袁멸퉫'</em> ?섍퀬 鍮꾩쭛怨??ㅼ뼱媛묐땲??</p>
+            </div>
+            <h3 style="color: var(--jelly-orange); margin-bottom: 15px;">?ш린 洹쒖튃</h3>
+            <ul class="jelly-list">
+                <li style="font-size: 22px; margin-bottom: 10px;">?덈꺼 1: ?꾧린 ?ㅻ━ (?쒖옉)</li>
+                <li style="font-size: 22px; margin-bottom: 10px;">?ㅻ━ 1媛?癒뱀쓣 ?뚮쭏??<strong>+1 ?덈꺼 ??</strong></li>
+                <li style="font-size: 22px; margin-bottom: 10px;">?깅슧?댁?硫?1移몄쭨由??덉? 紐?媛??</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide7">
+    <h2 class="slide-title">?덈꺼 湲곕?</h2>
+    <div class="content-area">
+        <div class="tiled-content">
+            <div class="jelly-card">
+                <div class="icon" style="color: #ff7675; background: #fff0f0;"><i class="fa-solid fa-shapes"></i></div>
+                <h3>毓곗” 媛??/h3>
+                <p>?우쑝硫??ㅻ━媛 ?곗졇??br>?묒븘?몄슂! ?꾩빞!</p>
+            </div>
+            <div class="jelly-card">
+                <div class="icon" style="color: #00cec9; background: #e0fffe;"><i class="fa-solid fa-door-open"></i></div>
+                <h3>?됯퉼 臾?/h3>
+                <p>媛숈? ?됯퉼 ?ㅻ━留?br>?듦낵?쒖폒 以띾땲??</p>
+            </div>
+            <div class="jelly-card">
+                <div class="icon" style="color: #fdcb6e; background: #fff8e0;"><i class="fa-solid fa-blender"></i></div>
+                <h3>誘뱀꽌湲?/h3>
+                <p>?됱쓣 ?쒕뜡?쇰줈 諛붽씀嫄곕굹<br>?щ챸?섍쾶 ?살뼱?낅땲??</p>
+            </div>
+            <div class="jelly-card">
+                <div class="icon" style="color: #a29bfe; background: #f0f0ff;"><i class="fa-solid fa-bolt"></i></div>
+                <h3>?ы꽭</h3>
+                <p>?ㅻ━瑜??ㅻⅨ 怨녹쑝濡?br>?쒓컙?대룞 肉?</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide8">
+    <h2 class="slide-title">UI/UX ?꾨왂</h2>
+    <div class="content-area two-column">
+        <div class="soft-img-frame" style="border-radius: 50%; width: 450px; height: 450px; margin: 0 auto; border: 8px solid #fff;">
+            <img src="img/jellymix04.png" 
+                 alt="Colorful playful mobile game UI"
+                 onerror="this.src='https://placehold.co/600x600/55efc4/ffffff?text=Game+UI+Mockup'">
+        </div>
+        <div>
+            <h3 style="font-size: 36px; color: var(--jelly-purple);">"蹂닿린留??대룄 ?ъ숴?섍쾶"</h3>
+            <ul class="jelly-list" style="margin-top: 30px;">
+                <li><strong>愿묓깮 踰꾪듉:</strong> ?꾨Ⅴ怨??띔쾶 諛섏쭩諛섏쭩?섍쾶 ?붿옄?명빀?덈떎.</li>
+                <li><strong>?쇰뱶諛?</strong> ?⑹퀜吏???<em>'彛덉븬!'</em> ?뚮━? ?④퍡<br>?붾젮???됱쥌???뚰떚?댁씠 ?곗쭛?덈떎.</li>
+                <li><strong>吏곴???</strong> 湲?⑤낫?ㅻ뒗 ?꾩씠肄섍낵 ?됱긽?쇰줈<br>?ㅻ챸?⑸땲??</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>`;
-            app.loadContent(demoHTML);
+            loadContent(demoHTML);
         }
+
     </script>
 </body>
 
