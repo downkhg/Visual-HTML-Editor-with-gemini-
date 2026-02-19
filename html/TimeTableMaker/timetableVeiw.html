@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Timetable Viewer (percent)</title>
+                <style>
+                    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
+                    body { background-color: #1e272e; color: #f5f6fa; width: 100vw; height: 100vh; display: flex; flex-direction: column; }
+                    .header { height: 60px; display: flex; align-items: center; justify-content: center; background: #2d3436; flex-shrink: 0; }
+                    .header h1 { font-size: 1.5rem; color: #74b9ff; }
+                    .stage-wrap { flex: 1; position: relative; display: flex; overflow: hidden; }
+                    .time-col { width: 60px; background: #222f3e; border-right: 1px solid rgba(255,255,255,0.1); position: sticky; left: 0; z-index: 50; flex-shrink: 0; }
+                    .grid-canvas { position: relative; width: 100%; height: 100%; }
+                    .time-label { position: absolute; right: 5px; font-size: 0.75rem; color: #b2bec3; transform: translateY(-50%); }
+                    .room-headers { display: flex; height: 40px; border-bottom: 1px solid rgba(255,255,255,0.1); position: absolute; top: 0; width: 100%; background: #2d3436; z-index: 40; }
+                    .room-header { flex: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.1); font-weight: bold; font-size: 0.9rem; }
+                    .grid-lines { position: absolute; top: 40px; bottom: 0; left: 0; right: 0; pointer-events: none; }
+                    .h-line { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(255,255,255,0.05); }
+                    .v-line { position: absolute; top: 0; bottom: 0; border-right: 1px solid rgba(255,255,255,0.05); }
+
+                    /* [Fix] Export CSS: Add proper card-layer positioning */
+                    .card-layer { position: absolute; top: 40px; bottom: 0; left: 0; right: 0; z-index: 60; }
+
+                    .class-card {
+                        position: absolute; cursor: pointer; overflow: hidden;
+                        display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between;
+                        padding: 8px 10px; border-radius: 8px; color: white;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
+                        transition: transform 0.2s;
+                    }
+                    .class-card:hover { transform: scale(1.05); z-index: 100; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+
+                    .instructor-highlight {
+                        background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(4px);
+                        border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 12px;
+                        padding: 2px 10px; font-weight: 700; margin-bottom: 4px;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.1); align-self: flex-start;
+                    }
+                    .day-badge { background: transparent; border: 1px solid rgba(255,255,255,0.4); border-radius: 4px; padding: 1px 5px; opacity: 0.9; }
+
+                    .cat-programming { background: #74b9ff; color: #2d3436; }
+                    .cat-prog-adv { background: #0984e3; color: #ffffff; }
+                    .cat-plan-basic { background: #ffeaa7; color: #2d3436; }
+                    .cat-plan-adv { background: #f39c12; color: #ffffff; }
+                    .cat-art-basic { background: #ff7675; color: #2d3436; }
+                    .cat-art-adv { background: #d63031; color: #ffffff; }
+                    .cat-ui, .cat-emo { background: #fab1a0; color: #2d3436; }
+                    .cat-graphic { background: #6c5ce7; color: #ffffff; }
+                    .cat-webtoon { background: #e17055; color: #ffffff; }
+                    .cat-novel { background: #fdcb6e; color: #2d3436; }
+                    .cat-port { background: #8e44ad; color: #ffffff; }
+                    .cat-kdigital { background: #b71540; color: #ffffff; border: 2px solid #ffcccc; }
+                    .cat-default { background: #636e72; color: #ffffff; }
+                </style>
+</head>
+<body>
+                <div class="header"><h1>ACADEMY TIMETABLE</h1></div>
+                <div class="stage-wrap">
+                    <div class="time-col" id="tCol"></div>
+                    <div class="grid-canvas"><div class="room-headers" id="rHead"></div><div class="grid-lines" id="gLine"></div><div id="cLayer" class="card-layer"></div></div>
+                </div>
+                <script>
+                    const DATA = [{"rect":{"x":12.5,"y":23.076923076923077,"w":12.4,"h":15.184615384615386},"core":{"id":1,"subject":"컨셉캐릭터일러/비대면","instructor":"정예지","room":"M","days":"월~금","category":"art-adv","startH":12,"endH":14},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":12.5,"y":53.84615384615385,"w":12.4,"h":15.184615384615386},"core":{"id":2,"subject":"웹툰작화(평일)","instructor":"정동호","room":"M","days":"월~금","category":"webtoon","startH":16,"endH":18},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":12.5,"y":69.23076923076923,"w":12.4,"h":15.184615384615386},"core":{"id":3,"subject":"웹툰작화(평일)","instructor":"정동호","room":"M","days":"월~금","category":"webtoon","startH":18,"endH":20},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":12.5,"y":84.61538461538461,"w":12.4,"h":15.184615384615386},"core":{"id":4,"subject":"웹툰작화(평일)","instructor":"정동호","room":"M","days":"월~금","category":"webtoon","startH":20,"endH":22},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":37.5,"y":53.84615384615385,"w":12.4,"h":15.184615384615386},"core":{"id":5,"subject":"게임아트웍","instructor":"심예지","room":"O","days":"월~금","category":"art-basic","startH":16,"endH":18},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":37.5,"y":69.23076923076923,"w":12.4,"h":15.184615384615386},"core":{"id":6,"subject":"게임원화","instructor":"심예지","room":"O","days":"월~금","category":"art-adv","startH":18,"endH":20},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":0,"y":0,"w":12.4,"h":53.5},"core":{"id":7,"subject":"[국] 게임그래픽 디자인 전문가양성(2D/3D)","instructor":"최동훈, 조성진, 전태은","room":"L","days":"월~금","category":"graphic","startH":9,"endH":18},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":0.9,"daySize":1}},{"rect":{"x":0,"y":53.84615384615385,"w":12.4,"h":15.184615384615386},"core":{"id":8,"subject":"게임프로그래밍3","instructor":"최대호","room":"L","days":"월~금","category":"prog-adv","startH":16,"endH":18},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":0,"y":69.23076923076923,"w":12.4,"h":15.184615384615386},"core":{"id":9,"subject":"게임프로그래밍6","instructor":"최대호","room":"L","days":"월~금","category":"prog-adv","startH":18,"endH":20},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":0,"y":84.61538461538461,"w":12.4,"h":15.184615384615386},"core":{"id":10,"subject":"게임프로그래밍2","instructor":"최대호","room":"L","days":"월~금","category":"prog-adv","startH":20,"endH":22},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":25,"y":15.384615384615385,"w":12.4,"h":15.184615384615386},"core":{"id":11,"subject":"게임원화","instructor":"조성진","room":"N","days":"월~금","category":"art-adv","startH":11,"endH":13},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":25,"y":38.46153846153847,"w":12.4,"h":15.184615384615386},"core":{"id":12,"subject":"게임아트웍","instructor":"심예지","room":"N","days":"월~금","category":"art-basic","startH":14,"endH":16},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":25,"y":53.84615384615385,"w":12.4,"h":15.184615384615386},"core":{"id":13,"subject":"스피드드로잉2","instructor":"수업없음","room":"N","days":"월~금","category":"art-basic","startH":16,"endH":18},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":25,"y":69.23076923076923,"w":12.4,"h":15.184615384615386},"core":{"id":14,"subject":"게임아트웍","instructor":"조성진","room":"N","days":"월~금","category":"art-basic","startH":18,"endH":20},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":25,"y":84.61538461538461,"w":12.4,"h":15.184615384615386},"core":{"id":15,"subject":"게임원화(심화)","instructor":"수업없음","room":"N","days":"월수금월수","category":"art-adv","startH":20,"endH":22},"defaultText":{"days":"월수금월수"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":25,"y":84.61538461538461,"w":12.4,"h":15.184615384615386},"core":{"id":16,"subject":"게임아트웍(기초)","instructor":"조성진","room":"N","days":"화목화목금","category":"art-basic","startH":20,"endH":22},"defaultText":{"days":"화목화목금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":62.5,"y":15.384615384615385,"w":12.4,"h":15.184615384615386},"core":{"id":17,"subject":"게임그래픽(기초)","instructor":"김지원","room":"Q","days":"월~금","category":"graphic","startH":11,"endH":13},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":62.5,"y":38.46153846153847,"w":12.4,"h":15.184615384615386},"core":{"id":18,"subject":"게임그래픽(심화)","instructor":"김지원","room":"Q","days":"월~금","category":"graphic","startH":14,"endH":16},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":62.5,"y":53.84615384615385,"w":12.4,"h":15.184615384615386},"core":{"id":19,"subject":"게임그래픽(심화)","instructor":"김지원","room":"Q","days":"월~금","category":"graphic","startH":16,"endH":18},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":62.5,"y":69.23076923076923,"w":12.4,"h":15.184615384615386},"core":{"id":20,"subject":"게임그래픽(기초)","instructor":"김지원","room":"Q","days":"월~금","category":"graphic","startH":18,"endH":20},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":68.7,"y":84.61538461538461,"w":6.1,"h":15.184615384615386},"core":{"id":21,"subject":"게임UIUX","instructor":"김창욱","room":"Q","days":"월수금월수","category":"ui","startH":20,"endH":22},"defaultText":{"days":"월수금월수"},"customText":{"subject":"","instructor":"","days":"월수금월수"},"style":{"subjSize":1.3,"instSize":1,"daySize":0.85}},{"rect":{"x":62.5,"y":84.61538461538461,"w":6.1,"h":15.184615384615386},"core":{"id":22,"subject":"이모티콘","instructor":"김창욱","room":"Q","days":"화목화목금","category":"emo","startH":20,"endH":22},"defaultText":{"days":"화목화목금"},"customText":{"subject":"","instructor":"","days":"화목화목금"},"style":{"subjSize":1.3,"instSize":1,"daySize":0.85}},{"rect":{"x":75,"y":0,"w":12.4,"h":15.184615384615386},"core":{"id":23,"subject":"컨셉캐릭터일러","instructor":"정예지","room":"R","days":"월~금","category":"art-adv","startH":9,"endH":11},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":75,"y":15.384615384615385,"w":12.4,"h":15.184615384615386},"core":{"id":24,"subject":"게임아트웍","instructor":"김채민","room":"R","days":"월~금","category":"art-basic","startH":11,"endH":13},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":75,"y":38.46153846153847,"w":12.4,"h":15.184615384615386},"core":{"id":25,"subject":"게임원화","instructor":"김채민","room":"R","days":"월~금","category":"art-adv","startH":14,"endH":16},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":75,"y":53.84615384615385,"w":12.4,"h":15.184615384615386},"core":{"id":26,"subject":"게임원화","instructor":"김채민","room":"R","days":"월~금","category":"art-adv","startH":16,"endH":18},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":75,"y":69.23076923076923,"w":12.4,"h":15.184615384615386},"core":{"id":27,"subject":"웹툰기초드로잉","instructor":"이상원","room":"R","days":"월~금","category":"webtoon","startH":18,"endH":20},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":75,"y":84.61538461538461,"w":12.4,"h":15.184615384615386},"core":{"id":28,"subject":"게임아트웍(기초)","instructor":"이재건","room":"R","days":"월수금월수","category":"art-basic","startH":20,"endH":22},"defaultText":{"days":"월수금월수"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":75,"y":84.61538461538461,"w":12.4,"h":15.184615384615386},"core":{"id":29,"subject":"게임원화(심화)","instructor":"이재건","room":"R","days":"화목화목금","category":"art-adv","startH":20,"endH":22},"defaultText":{"days":"화목화목금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":50,"y":53.84615384615385,"w":12.4,"h":15.184615384615386},"core":{"id":32,"subject":"게임기획4","instructor":"전태은","room":"P","days":"월~금","category":"plan-adv","startH":16,"endH":18},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":50,"y":84.61538461538461,"w":12.4,"h":15.184615384615386},"core":{"id":33,"subject":"게임기획2","instructor":"전태은","room":"P","days":"월~금","category":"plan-adv","startH":20,"endH":22},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":87.5,"y":53.84615384615385,"w":12.4,"h":15.184615384615386},"core":{"id":34,"subject":"웹툰기초드로잉","instructor":"이상원","room":"S","days":"월~금","category":"webtoon","startH":16,"endH":18},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":87.5,"y":69.23076923076923,"w":12.4,"h":15.184615384615386},"core":{"id":35,"subject":"AI프롬프트드로잉","instructor":"이재건","room":"S","days":"화목월수금","category":"art-basic","startH":18,"endH":20},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":"A:화목/B:월수금"},"style":{"subjSize":1.3,"instSize":1,"daySize":1}},{"rect":{"x":87.5,"y":84.61538461538461,"w":12.4,"h":15.184615384615386},"core":{"id":36,"subject":"웹툰콘티","instructor":"이상원","room":"S","days":"월~금","category":"webtoon","startH":20,"endH":22},"defaultText":{"days":"월~금"},"customText":{"subject":"","instructor":"","days":""},"style":{"subjSize":1.3,"instSize":1,"daySize":1}}]; const ROOMS = ["L","M","N","O","P","Q","R","S"]; const CONFIG = { start: 9, end: 22 }; const UNIT = '%'; const IS_PX = false; const PX_SET = { colW: 150, hourH: 60 };
+                    document.addEventListener('DOMContentLoaded', () => {
+                        const tCol = document.getElementById('tCol'); const rHead = document.getElementById('rHead'); const gLine = document.getElementById('gLine'); const cLayer = document.getElementById('cLayer'); const totalH = CONFIG.end - CONFIG.start;
+                        for(let h=CONFIG.start; h<=CONFIG.end; h++) {
+                            let pos = IS_PX ? (h - CONFIG.start) * PX_SET.hourH + 'px' : ((h - CONFIG.start) / totalH) * 100 + '%';
+                            const l = document.createElement('div'); l.className='time-label'; l.innerText = h+":00"; l.style.top=pos; tCol.appendChild(l);
+                            if(h !== CONFIG.end){ const hl = document.createElement('div'); hl.className='h-line'; hl.style.top=pos; gLine.appendChild(hl); }
+                        }
+                        ROOMS.forEach((r, i) => {
+                            const rh = document.createElement('div'); rh.className='room-header'; rh.innerText=r; rHead.appendChild(rh);
+                            if(i>0) { const vl = document.createElement('div'); vl.className='v-line'; let left = IS_PX ? i * PX_SET.colW + 'px' : (i/ROOMS.length)*100 + '%'; vl.style.left=left; gLine.appendChild(vl); }
+                        });
+
+                        DATA.forEach(dto => {
+                            const el = document.createElement('div'); el.className = 'class-card cat-' + dto.core.category;
+                            el.style.left = dto.rect.x + UNIT; el.style.top = dto.rect.y + UNIT; el.style.width = dto.rect.w + UNIT; el.style.height = dto.rect.h + UNIT;
+
+                            const subj = dto.customText.subject || dto.core.subject;
+                            const inst = dto.customText.instructor || dto.core.instructor;
+                            // [수정] 요일도 커스텀 텍스트를 우선 적용하도록 변수화
+                            const days = dto.customText.days || dto.defaultText.days;
+
+                            el.innerHTML = `
+                                <div style="font-weight:800; font-size:${dto.style.subjSize}rem; margin-bottom:auto; line-height:1.2; text-shadow:0 1px 2px rgba(0,0,0,0.1); word-break:keep-all;">${subj}</div>
+                                <div class="instructor-highlight" style="font-size:${dto.style.instSize}rem;">${inst}</div>
+                                <div class="day-badge" style="font-size:${dto.style.daySize}rem;">${days}</div>
+                            `;
+                            cLayer.appendChild(el);
+                        });
+                    });
+                </script>
+</body>
+</html>
