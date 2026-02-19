@@ -3,235 +3,336 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>강의시간표 Excel to JSON 변환기</title>
+    <title>강의시간표 Excel to JSON 변환기 (V2)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; line-height: 1.6; background-color: #f4f7f6; }
-        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h1 { color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; }
-        .upload-section { margin: 20px 0; padding: 20px; border: 2px dashed #ccc; border-radius: 10px; text-align: center; }
-        #fileInput { margin-bottom: 10px; }
-        .btn-group { margin-top: 10px; }
-        button { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-right: 5px; }
-        button:hover { background-color: #45a049; }
-        button:disabled { background-color: #ccc; }
-        #output { width: 100%; height: 400px; margin-top: 20px; font-family: monospace; font-size: 12px; background: #272822; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow: auto; white-space: pre-wrap; }
-        .status { margin-top: 10px; font-weight: bold; }
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f0f2f5;
+            color: #1c1e21;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #1a73e8;
+            border-bottom: 3px solid #1a73e8;
+            padding-bottom: 15px;
+            margin-top: 0;
+        }
+
+        .instruction {
+            background: #e8f0fe;
+            padding: 15px;
+            border-left: 5px solid #1a73e8;
+            margin-bottom: 25px;
+            border-radius: 4px;
+        }
+
+        .upload-section {
+            margin: 20px 0;
+            padding: 40px;
+            border: 3px dashed #1a73e8;
+            border-radius: 12px;
+            text-align: center;
+            transition: background 0.3s;
+        }
+
+            .upload-section:hover {
+                background: #f8fbff;
+            }
+
+        #fileInput {
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .btn-group {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        button {
+            background-color: #1a73e8;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+            button:hover {
+                background-color: #1557b0;
+            }
+
+            button:disabled {
+                background-color: #ccc;
+                cursor: not-allowed;
+            }
+
+        #output {
+            width: 100%;
+            height: 500px;
+            margin-top: 30px;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 13px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow: auto;
+            white-space: pre-wrap;
+            border: 1px solid #333;
+        }
+
+        .status {
+            margin-top: 15px;
+            font-weight: bold;
+            color: #5f6368;
+        }
+
+        .success {
+            color: #1e8e3e;
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>📅 강의시간표 JSON 변환기</h1>
-    <p>엑셀 파일을 업로드하면 <code>LECTURE_DATA</code> 형식의 JSON으로 변환합니다.</p>
-    
-    <div class="upload-section">
-        <input type="file" id="fileInput" accept=".xlsx, .xls, .csv">
-        <div class="status" id="status">파일을 선택해주세요.</div>
+    <div class="container">
+        <h1>📅 강의시간표 JSON 변환기 (격일 인식 보정판)</h1>
+        <div class="instruction">
+            <strong>업데이트 내용:</strong><br>
+            - E, F열(N-1, N-2) 등 과목명에 '격일'이 없는 경우에도 요일 패턴(월수금/화목)을 분석하여 격일 수업을 자동으로 판별합니다.
+        </div>
+
+        <div class="upload-section">
+            <input type="file" id="fileInput" accept=".xlsx, .xls, .csv">
+            <div class="status" id="status">엑셀 파일을 선택해주세요.</div>
+        </div>
+
+        <div class="btn-group">
+            <button id="downloadJson" disabled>JSON 다운로드</button>
+            <button id="downloadJs" disabled>data.js 다운로드</button>
+        </div>
+
+        <div id="output">// 변환 결과가 여기에 표시됩니다.</div>
     </div>
 
-    <div class="btn-group">
-        <button id="downloadJson" disabled>JSON 다운로드</button>
-        <button id="downloadJs" disabled>data.js 다운로드</button>
-    </div>
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const output = document.getElementById('output');
+        const status = document.getElementById('status');
+        const downloadJsonBtn = document.getElementById('downloadJson');
+        const downloadJsBtn = document.getElementById('downloadJs');
 
-    <div id="output">// 결과가 여기에 표시됩니다.</div>
-</div>
+        let resultData = null;
 
-<script>
-    const fileInput = document.getElementById('fileInput');
-    const output = document.getElementById('output');
-    const status = document.getElementById('status');
-    const downloadJsonBtn = document.getElementById('downloadJson');
-    const downloadJsBtn = document.getElementById('downloadJs');
-    
-    let resultData = null;
+        fileInput.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
 
-    fileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
+            status.innerText = "파일을 읽고 변환하는 중...";
+            const reader = new FileReader();
 
-        status.innerText = "파일 읽는 중...";
-        const reader = new FileReader();
+            reader.onload = function (e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-        reader.onload = function(e) {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, {type: 'array'});
-            
-            // 첫 번째 시트 선택
-            const sheetName = workbook.SheetNames[0];
-            const sheet = workbook.Sheets[sheetName];
-            
-            // 2차원 배열로 변환
-            const rows = XLSX.utils.sheet_to_json(sheet, {header: 1});
-            
-            try {
-                const lectures = parseTimetable(rows);
-                resultData = lectures;
-                const jsonStr = JSON.stringify(lectures, null, 2);
-                output.innerText = jsonStr;
-                status.innerText = `성공! ${lectures.length}개의 강의를 찾았습니다.`;
-                downloadJsonBtn.disabled = false;
-                downloadJsBtn.disabled = false;
-            } catch (err) {
-                console.error(err);
-                status.innerText = "오류 발생: 파일 구조를 확인해주세요.";
-                output.innerText = err.stack;
+                try {
+                    const lectures = parseTimetable(rows);
+                    resultData = lectures;
+                    output.innerText = JSON.stringify(lectures, null, 2);
+                    status.innerHTML = `<span class="success">성공! 총 ${lectures.length}개의 강의 데이터를 추출했습니다.</span>`;
+                    downloadJsonBtn.disabled = false;
+                    downloadJsBtn.disabled = false;
+                } catch (err) {
+                    console.error(err);
+                    status.innerText = "오류가 발생했습니다. 콘솔을 확인하세요.";
+                    output.innerText = err.stack;
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        });
+
+        function parseTimetable(df) {
+            const lectures = [];
+            let lectureId = 1;
+
+            // 1. 강의실 매핑 (Row 0 기준)
+            const roomMap = {};
+            let currentRoom = "";
+            const firstRow = df[0] || [];
+            for (let c = 1; c < firstRow.length; c++) {
+                if (firstRow[c] && String(firstRow[c]).trim()) {
+                    currentRoom = String(firstRow[c]).trim();
+                }
+                roomMap[c] = currentRoom;
             }
-        };
 
-        reader.readAsArrayBuffer(file);
-    });
-
-    function parseTimetable(df) {
-        const lectures = [];
-        let lectureId = 1;
-
-        // 1. 강의실 매핑 (Row 0 기준)
-        const roomMap = {};
-        let currentRoom = "";
-        const firstRow = df[0] || [];
-        for (let c = 1; c < firstRow.length; c++) {
-            if (firstRow[c] && String(firstRow[c]).trim()) {
-                currentRoom = String(firstRow[c]).trim();
+            // 2. 시간 매핑 (Col 0 기준)
+            const timeMap = {};
+            let lastTime = null;
+            for (let r = 0; r < df.length; r++) {
+                const tVal = df[r][0];
+                if (tVal && String(tVal).trim() && String(tVal).includes(':')) {
+                    lastTime = String(tVal).trim();
+                }
+                timeMap[r] = lastTime;
             }
-            roomMap[c] = currentRoom;
-        }
 
-        // 2. 시간 매핑 (Col 0 기준)
-        const timeMap = {};
-        let lastTime = null;
-        for (let r = 0; r < df.length; r++) {
-            const tVal = df[r][0];
-            if (tVal && String(tVal).trim() && String(tVal).includes(':')) {
-                lastTime = String(tVal).trim();
+            const ignoreKeywords = ["전체출석율", "당일출석율", "정원 :", "강사 :", "배정:", "개:", "종:", "수업없음", "설연휴", "휴강", "개강연기"];
+
+            function isSubject(val) {
+                if (!val) return false;
+                const s = String(val).trim();
+                if (s === "" || s === "undefined" || s === "null") return false;
+                if (ignoreKeywords.some(k => s.includes(k))) return false;
+                if (["월~금", "월/수/금", "화/목", "월수금", "화목", "월수금월수", "화목화목금"].some(k => s === k)) return false;
+                if (/^[가-힣]{2,4}\d?$/.test(s)) return false; // 강사명 필터링
+                return true;
             }
-            timeMap[r] = lastTime;
-        }
 
-        const ignoreKeywords = ["전체출석율", "당일출석율", "정원 :", "강사 :", "배정:", "개:", "종:", "수업없음", "설연휴", "휴강", "개강연기"];
+            function getCategory(subject) {
+                const s = subject.toLowerCase();
+                if (s.includes('웹툰')) return 'webtoon';
+                if (s.includes('이모티콘')) return 'emo';
+                if (s.includes('프로그래밍')) return 'prog-adv';
+                if (s.includes('기획')) return 'plan-adv';
+                if (s.includes('ui') || s.includes('ux')) return 'ui';
+                if (s.includes('그래픽')) return 'graphic';
+                if (s.includes('원화') || s.includes('캐릭터')) return 'art-adv';
+                if (s.includes('아트웍') || s.includes('드로잉')) return 'art-basic';
+                if (s.includes('국]') || s.includes('k-digital') || s.includes('전문가양성')) return 'kdigital';
+                if (s.includes('포폴') || s.includes('포트폴리오')) return 'port';
+                return 'art-basic';
+            }
 
-        function isSubject(val) {
-            if (!val) return false;
-            const s = String(val).trim();
-            if (s === "" || s === "undefined") return false;
-            if (ignoreKeywords.some(k => s.includes(k))) return false;
-            if (["월~금", "월/수/금", "화/목", "월수금", "화목"].some(k => s === k)) return false;
-            // 강사명 필터링 (한글 2~4자 + 숫자 형태 제외)
-            if (/^[가-힣]{2,4}\d?$/.test(s)) return false;
-            return true;
-        }
+            const maxCols = df[0] ? df[0].length : 0;
+            for (let c = 1; c < maxCols; c++) {
+                const room = roomMap[c];
+                if (!room) continue;
 
-        function getCategory(subject) {
-            const s = subject.toLowerCase();
-            if (s.includes('웹툰')) return 'webtoon';
-            if (s.includes('이모티콘')) return 'emo';
-            if (s.includes('프로그래밍')) return 'prog-adv';
-            if (s.includes('기획')) return 'plan-adv';
-            if (s.includes('ui') || s.includes('ux')) return 'ui';
-            if (s.includes('그래픽')) return 'graphic';
-            if (s.includes('원화') || s.includes('캐릭터')) return 'art-adv';
-            if (s.includes('아트웍') || s.includes('드로잉')) return 'art-basic';
-            if (s.includes('국]') || s.includes('k-digital') || s.includes('전문가양성')) return 'kdigital';
-            if (s.includes('포폴') || s.includes('포트폴리오')) return 'port';
-            return 'art-basic';
-        }
+                for (let r = 3; r < df.length; r++) {
+                    const val = df[r][c];
+                    if (isSubject(val)) {
+                        const subject = String(val).trim();
+                        const startTimeStr = timeMap[r];
+                        const startH = startTimeStr ? parseInt(startTimeStr.split(':')[0]) : 0;
 
-        const maxCols = df[0] ? df[0].length : 0;
-        for (let c = 1; c < maxCols; c++) {
-            const room = roomMap[c];
-            if (!room) continue;
+                        let instructor = "";
+                        let days = "월~금";
+                        let startDate = "";
+                        let endDate = "";
 
-            for (let r = 3; r < df.length; r++) {
-                const val = df[r][c];
-                if (isSubject(val)) {
-                    const subject = String(val).trim();
-                    const startTimeStr = timeMap[r];
-                    const startH = startTimeStr ? parseInt(startTimeStr.split(':')[0]) : 0;
-                    
-                    let instructor = "";
-                    let days = "월~금";
-                    let startDate = "";
-                    let endDate = "";
-                    
-                    // 세부 정보 탐색
-                    let searchR = r + 1;
-                    while (searchR < df.length && !isSubject(df[searchR][c])) {
-                        const mVal = String(df[searchR][c] || "");
-                        if (mVal.includes('강사 :')) {
-                            instructor = mVal.replace('강사 :', '').trim();
-                        } else if (/^[가-힣]{2,4}\d?$/.test(mVal) && instructor === "") {
-                            instructor = mVal.trim();
+                        let searchR = r + 1;
+                        while (searchR < df.length && !isSubject(df[searchR][c])) {
+                            const mVal = String(df[searchR][c] || "");
+                            if (mVal.includes('강사 :')) {
+                                instructor = mVal.replace('강사 :', '').trim();
+                            } else if (/^[가-힣]{2,4}\d?$/.test(mVal) && instructor === "") {
+                                instructor = mVal.trim();
+                            }
+
+                            if (["월~금", "월/수/금", "화/목", "격일", "월수금", "화목", "월수금월수", "화목화목금"].some(d => mVal.includes(d))) {
+                                days = mVal.trim();
+                            }
+
+                            if (mVal.includes('개:')) {
+                                const match = mVal.match(/(\d{4}-\d{2}-\d{2})/);
+                                if (match) startDate = match[1].substring(5);
+                            }
+                            if (mVal.includes('종:')) {
+                                const match = mVal.match(/(\d{4}-\d{2}-\d{2})/);
+                                if (match) endDate = match[1].substring(5);
+                            }
+                            searchR++;
                         }
-                        
-                        if (["월~금", "월/수/금", "화/목", "격일", "월수금", "화목"].some(d => mVal.includes(d))) {
-                            days = mVal.trim();
+
+                        let endH = startH + 2;
+                        if (searchR < df.length && timeMap[searchR]) {
+                            const nextH = parseInt(timeMap[searchR].split(':')[0]);
+                            if (nextH > startH) endH = nextH;
                         }
-                        
-                        if (mVal.includes('개:')) {
-                            const match = mVal.match(/(\d{4}-\d{2}-\d{2})/);
-                            if (match) startDate = match[1].substring(5);
+
+                        instructor = instructor.replace(/\d+$/, '').trim();
+
+                        // --- [격일 판별 로직 강화 시작] ---
+                        let weekType = "ALL";
+                        const dayStr = days.replace(/\s/g, "");
+                        const subRoom = String(df[1][c] || ""); // 예: N-1, N-2
+
+                        // 1. 요일 패턴 기반 분석
+                        if (dayStr.includes("화목") || dayStr.includes("화/목")) {
+                            weekType = "A";
+                        } else if (dayStr.includes("월수금") || dayStr.includes("월/수/금")) {
+                            weekType = "B";
                         }
-                        if (mVal.includes('종:')) {
-                            const match = mVal.match(/(\d{4}-\d{2}-\d{2})/);
-                            if (match) endDate = match[1].substring(5);
+
+                        // 2. 키워드 및 강의실 번호 교차 확인
+                        if (subject.includes("격일") || days.includes("격일") || weekType !== "ALL") {
+                            if (weekType === "ALL") { // 요일 패턴이 불분명할 때만 강의실 번호 참고
+                                if (subRoom.endsWith("-2")) weekType = "B";
+                                else if (subRoom.endsWith("-1")) weekType = "A";
+                            }
                         }
-                        searchR++;
+
+                        // 3. 예외 처리: 명시적인 월~금 수업은 무조건 ALL
+                        if (dayStr === "월~금") {
+                            weekType = "ALL";
+                        }
+                        // --- [격일 판별 로직 강화 끝] ---
+
+                        lectures.push({
+                            id: lectureId++,
+                            subject: subject,
+                            instructor: instructor,
+                            room: room,
+                            startH: startH,
+                            endH: endH,
+                            days: days,
+                            dateInfo: (startDate && endDate) ? `${startDate} ~ ${endDate}` : "",
+                            category: getCategory(subject),
+                            weekType: weekType,
+                            isBadge: "",
+                            fontSize: 14,
+                            opacity: 100
+                        });
+                        r = searchR - 1;
                     }
-
-                    // 종료 시간 계산 (기본 2시간 또는 다음 수업 시작 전까지)
-                    let endH = startH + 2;
-                    if (searchR < df.length && timeMap[searchR]) {
-                        const nextH = parseInt(timeMap[searchR].split(':')[0]);
-                        if (nextH > startH) endH = nextH;
-                    }
-
-                    // 강사명 숫자 제거
-                    instructor = instructor.replace(/\d+$/, '').trim();
-
-                    // weekType 결정
-                    let weekType = "ALL";
-                    if (days.includes("격일")) {
-                        const subRoom = String(df[1][c] || "");
-                        weekType = (subRoom.includes("-1")) ? "A" : "B";
-                    } else if (days.includes("월/수/금") || days.includes("월수금")) {
-                        weekType = "B";
-                    }
-
-                    lectures.push({
-                        id: lectureId++,
-                        subject: subject,
-                        instructor: instructor,
-                        room: room,
-                        startH: startH,
-                        endH: endH,
-                        days: days,
-                        dateInfo: (startDate && endDate) ? `${startDate} ~ ${endDate}` : "",
-                        category: getCategory(subject),
-                        weekType: weekType,
-                        isBadge: "",
-                        fontSize: 14,
-                        opacity: 100
-                    });
-                    r = searchR - 1; // 다음 검색 위치로 점프
                 }
             }
+            return lectures;
         }
-        return lectures;
-    }
 
-    // 다운로드 함수들
-    function downloadFile(content, fileName, contentType) {
-        const a = document.createElement("a");
-        const file = new Blob([content], {type: contentType});
-        a.href = URL.createObjectURL(file);
-        a.download = fileName;
-        a.click();
-    }
+        function downloadFile(content, fileName, contentType) {
+            const a = document.createElement("a");
+            const file = new Blob([content], { type: contentType });
+            a.href = URL.createObjectURL(file);
+            a.download = fileName;
+            a.click();
+        }
 
-    downloadJsonBtn.onclick = () => downloadFile(JSON.stringify(resultData, null, 2), 'data.json', 'application/json');
-    downloadJsBtn.onclick = () => downloadFile("const LECTURE_DATA = " + JSON.stringify(resultData, null, 2) + ";", 'data.js', 'text/javascript');
+        downloadJsonBtn.onclick = () => downloadFile(JSON.stringify(resultData, null, 2), 'data.json', 'application/json');
+        downloadJsBtn.onclick = () => downloadFile("const LECTURE_DATA = " + JSON.stringify(resultData, null, 2) + ";", 'data.js', 'text/javascript');
 
-</script>
+    </script>
 </body>
 </html>
