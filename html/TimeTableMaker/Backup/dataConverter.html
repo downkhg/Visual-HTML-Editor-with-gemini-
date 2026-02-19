@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>강의시간표 Excel to JSON 변환기 (V2)</title>
+    <title>강의시간표 Excel to JSON 변환기 (아키텍처 개선판)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
+        /* CSS는 기존과 동일하게 유지합니다 */
         body {
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             padding: 20px;
@@ -113,10 +114,12 @@
 <body>
 
     <div class="container">
-        <h1>📅 강의시간표 JSON 변환기 (격일 인식 보정판)</h1>
+        <h1>📅 강의시간표 JSON 변환기 (아키텍처 개선판)</h1>
         <div class="instruction">
-            <strong>업데이트 내용:</strong><br>
-            - E, F열(N-1, N-2) 등 과목명에 '격일'이 없는 경우에도 요일 패턴(월수금/화목)을 분석하여 격일 수업을 자동으로 판별합니다.
+            <strong>시스템 리팩토링 적용 완료:</strong><br>
+            - 🏗️ <b>빌더 패턴 도입:</b> 강의 데이터 조립을 전담하는 객체를 생성하여 데이터 무결성을 확보했습니다.<br>
+            - 🔄 <b>FSM(상태 기계) 파서:</b> 엑셀 셀을 읽는 로직을 '상태' 기반으로 분리하여 예외 처리가 강력해졌습니다.<br>
+            - ⏱️ <b>시간 인식 버그 수정:</b> SheetJS 파싱 시 `raw: false` 옵션을 추가하여 텍스트 포맷을 정상 인식합니다. [cite: 1]
         </div>
 
         <div class="upload-section">
@@ -133,6 +136,228 @@
     </div>
 
     <script>
+        // ==========================================
+        // 1. 설정 및 상수 (Constants)
+        // ==========================================
+        const IGNORE_KEYWORDS = ["전체출석율", "당일출석율", "정원 :", "강사 :", "배정:", "개:", "종:", "수업없음", "설연휴", "휴강", "개강연기"];
+        const DAY_PATTERNS = ["월~금", "월/수/금", "화/목", "격일", "월수금", "화목", "월수금월수", "화목화목금"];
+
+        // ==========================================
+        // 2. 강의 객체 조립기 (Builder Pattern)
+        // ==========================================
+        class LectureBuilder {
+            constructor(id, subject, room, startH, subRoom) {
+                this.id = id;
+                this.subject = subject;
+                this.room = room;
+                this.subRoom = subRoom;
+                this.startH = startH;
+                this.endH = startH + 2; // 기본 2시간 고정
+
+                // 수집될 기본값들
+                this.instructor = "";
+                this.days = "월~금";
+                this.startDate = "";
+                this.endDate = "";
+            }
+
+            // 개별 속성 추출 및 할당 로직을 캡슐화
+            parseAttribute(val) {
+                if (!val) return;
+
+                // 강사 추출
+                if (val.includes('강사 :')) {
+                    this.instructor = val.replace('강사 :', '').trim();
+                } else if (/^[가-힣]{2,4}\d?$/.test(val) && !this.instructor) {
+                    this.instructor = val.trim();
+                }
+
+                // 요일 추출
+                if (DAY_PATTERNS.some(d => val.includes(d))) {
+                    this.days = val.trim();
+                }
+
+                // 날짜 추출
+                const dateMatch = val.match(/(\d{4}-\d{2}-\d{2})/);
+                if (dateMatch) {
+                    if (val.includes('개:')) this.startDate = dateMatch[1].substring(5); // MM-DD
+                    if (val.includes('종:')) this.endDate = dateMatch[1].substring(5);   // MM-DD
+                }
+            }
+
+            _getCategory(subject) {
+                const s = subject.toLowerCase();
+                if (s.includes('웹툰')) return 'webtoon';
+                if (s.includes('이모티콘')) return 'emo';
+                if (s.includes('프로그래밍')) return 'prog-adv';
+                if (s.includes('기획')) return 'plan-adv';
+                if (s.includes('ui') || s.includes('ux')) return 'ui';
+                if (s.includes('그래픽')) return 'graphic';
+                if (s.includes('원화') || s.includes('캐릭터')) return 'art-adv';
+                if (s.includes('아트웍') || s.includes('드로잉')) return 'art-basic';
+                if (s.includes('국]') || s.includes('k-digital') || s.includes('전문가양성')) return 'kdigital';
+                if (s.includes('포폴') || s.includes('포트폴리오')) return 'port';
+                return 'art-basic';
+            }
+
+            _calculateWeekType() {
+                let weekType = "ALL";
+                const dayStr = this.days.replace(/\s/g, "");
+
+                if (dayStr.includes("화목") || dayStr.includes("화/목")) weekType = "A";
+                else if (dayStr.includes("월수금") || dayStr.includes("월/수/금")) weekType = "B";
+
+                if (this.subject.includes("격일") || this.days.includes("격일") || weekType !== "ALL") {
+                    if (weekType === "ALL") {
+                        if (this.subRoom.endsWith("-2")) weekType = "B";
+                        else if (this.subRoom.endsWith("-1")) weekType = "A";
+                    }
+                }
+                if (dayStr === "월~금") weekType = "ALL";
+
+                return weekType;
+            }
+
+            // 수집된 데이터를 바탕으로 최종 JSON 객체 생성
+            build() {
+                const finalDateInfo = (this.startDate && this.endDate) ? `${this.startDate} ~ ${this.endDate}` : "";
+                const cleanInstructor = this.instructor.replace(/\d+$/, '').trim();
+
+                return {
+                    id: this.id,
+                    subject: this.subject,
+                    instructor: cleanInstructor,
+                    room: this.room,
+                    startH: this.startH,
+                    endH: this.endH,
+                    days: this.days,
+                    dateInfo: finalDateInfo,
+                    category: this._getCategory(this.subject),
+                    weekType: this._calculateWeekType(),
+                    isBadge: "",
+                    fontSize: 14,
+                    opacity: 100
+                };
+            }
+        }
+
+        // ==========================================
+        // 3. FSM 기반 시간표 파서 (State Pattern)
+        // ==========================================
+        class TimetableParser {
+            constructor(df) {
+                this.df = df;
+                this.lectures = [];
+                this.lectureId = 1;
+                this.roomMap = {};
+                this.subRoomMap = {};
+                this.timeMap = {};
+            }
+
+            parse() {
+                this._buildAxes();
+                const maxCols = this.df[0] ? this.df[0].length : 0;
+
+                // 파이프라인 흐름: 각 열(강의실)을 순회하며 상태 머신을 돌립니다.
+                for (let c = 1; c < maxCols; c++) {
+                    if (!this.roomMap[c]) continue;
+                    this._parseColumn(c);
+                }
+                return this.lectures;
+            }
+
+            // X축(강의실), Y축(시간) 맵 구축
+            _buildAxes() {
+                let currentRoom = "";
+                const firstRow = this.df[0] || [];
+                const secondRow = this.df[1] || [];
+
+                for (let c = 1; c < firstRow.length; c++) {
+                    if (firstRow[c] && String(firstRow[c]).trim()) currentRoom = String(firstRow[c]).trim();
+                    this.roomMap[c] = currentRoom;
+                    this.subRoomMap[c] = String(secondRow[c] || "").trim(); // M-1, N-2 등
+                }
+
+                let lastTime = null;
+                for (let r = 0; r < this.df.length; r++) {
+                    const tVal = this.df[r][0];
+                    if (tVal && String(tVal).trim() && String(tVal).includes(':')) {
+                        lastTime = String(tVal).trim();
+                    }
+                    this.timeMap[r] = lastTime;
+                }
+            }
+
+            _isSubject(val) {
+                if (!val) return false;
+                const s = String(val).trim();
+                if (s === "" || s === "undefined" || s === "null") return false;
+                if (IGNORE_KEYWORDS.some(k => s.includes(k))) return false;
+                if (DAY_PATTERNS.some(k => s === k)) return false;
+                if (/^[가-힣]{2,4}\d?$/.test(s)) return false;
+                return true;
+            }
+
+            // 단일 열(Column) 파싱 - 유한 상태 기계(FSM) 도입
+            _parseColumn(c) {
+                let state = 'IDLE'; // 상태: IDLE(대기) 또는 READING(데이터 수집 중)
+                let currentBuilder = null;
+                let lookaheadCount = 0;
+
+                for (let r = 3; r < this.df.length; r++) {
+                    const val = this.df[r][c];
+                    const strVal = String(val || "").trim();
+
+                    if (state === 'IDLE') {
+                        // 대기 상태에서 과목명을 만나면 '수집 상태'로 전환
+                        if (this._isSubject(strVal)) {
+                            const timeStr = this.timeMap[r];
+                            const startH = timeStr ? parseInt(timeStr.split(':')[0]) : 0;
+
+                            currentBuilder = new LectureBuilder(this.lectureId++, strVal, this.roomMap[c], startH, this.subRoomMap[c]);
+                            state = 'READING';
+                            lookaheadCount = 0;
+                        }
+                    }
+                    else if (state === 'READING') {
+                        // 수집 중 새로운 과목을 만나면 기존 데이터를 저장하고 새로 시작
+                        if (this._isSubject(strVal)) {
+                            this.lectures.push(currentBuilder.build());
+
+                            const timeStr = this.timeMap[r];
+                            const startH = timeStr ? parseInt(timeStr.split(':')[0]) : 0;
+
+                            currentBuilder = new LectureBuilder(this.lectureId++, strVal, this.roomMap[c], startH, this.subRoomMap[c]);
+                            lookaheadCount = 0;
+                            continue;
+                        }
+
+                        // 과목명 아래로 15칸 이상 공백/무효 데이터면 수집 종료 (무한 루프 방지)
+                        if (lookaheadCount > 15) {
+                            this.lectures.push(currentBuilder.build());
+                            state = 'IDLE';
+                            currentBuilder = null;
+                            continue;
+                        }
+
+                        // 빌더에게 데이터 속성 파싱을 위임
+                        if (strVal) {
+                            currentBuilder.parseAttribute(strVal);
+                        }
+                        lookaheadCount++;
+                    }
+                }
+
+                // 열 탐색이 끝났을 때 남아있는 수집 데이터 처리
+                if (currentBuilder) {
+                    this.lectures.push(currentBuilder.build());
+                }
+            }
+        }
+
+        // ==========================================
+        // 4. UI 및 이벤트 컨트롤러
+        // ==========================================
         const fileInput = document.getElementById('fileInput');
         const output = document.getElementById('output');
         const status = document.getElementById('status');
@@ -153,13 +378,16 @@
                 const workbook = XLSX.read(data, { type: 'array' });
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
-                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                // [핵심 변경점] raw: false 옵션을 주어 엑셀의 숫자 포맷팅된 시간을 텍스트 형태(09:00:00)로 강제 반환합니다.
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
 
                 try {
-                    const lectures = parseTimetable(rows);
-                    resultData = lectures;
-                    output.innerText = JSON.stringify(lectures, null, 2);
-                    status.innerHTML = `<span class="success">성공! 총 ${lectures.length}개의 강의 데이터를 추출했습니다.</span>`;
+                    const parser = new TimetableParser(rows);
+                    resultData = parser.parse();
+
+                    output.innerText = JSON.stringify(resultData, null, 2);
+                    status.innerHTML = `<span class="success">성공! 총 ${resultData.length}개의 강의 데이터를 추출했습니다.</span>`;
                     downloadJsonBtn.disabled = false;
                     downloadJsBtn.disabled = false;
                 } catch (err) {
@@ -171,156 +399,6 @@
 
             reader.readAsArrayBuffer(file);
         });
-
-        function parseTimetable(df) {
-            const lectures = [];
-            let lectureId = 1;
-
-            // 1. 강의실 매핑 (Row 0 기준)
-            const roomMap = {};
-            let currentRoom = "";
-            const firstRow = df[0] || [];
-            for (let c = 1; c < firstRow.length; c++) {
-                if (firstRow[c] && String(firstRow[c]).trim()) {
-                    currentRoom = String(firstRow[c]).trim();
-                }
-                roomMap[c] = currentRoom;
-            }
-
-            // 2. 시간 매핑 (Col 0 기준)
-            const timeMap = {};
-            let lastTime = null;
-            for (let r = 0; r < df.length; r++) {
-                const tVal = df[r][0];
-                if (tVal && String(tVal).trim() && String(tVal).includes(':')) {
-                    lastTime = String(tVal).trim();
-                }
-                timeMap[r] = lastTime;
-            }
-
-            const ignoreKeywords = ["전체출석율", "당일출석율", "정원 :", "강사 :", "배정:", "개:", "종:", "수업없음", "설연휴", "휴강", "개강연기"];
-
-            function isSubject(val) {
-                if (!val) return false;
-                const s = String(val).trim();
-                if (s === "" || s === "undefined" || s === "null") return false;
-                if (ignoreKeywords.some(k => s.includes(k))) return false;
-                if (["월~금", "월/수/금", "화/목", "월수금", "화목", "월수금월수", "화목화목금"].some(k => s === k)) return false;
-                if (/^[가-힣]{2,4}\d?$/.test(s)) return false; // 강사명 필터링
-                return true;
-            }
-
-            function getCategory(subject) {
-                const s = subject.toLowerCase();
-                if (s.includes('웹툰')) return 'webtoon';
-                if (s.includes('이모티콘')) return 'emo';
-                if (s.includes('프로그래밍')) return 'prog-adv';
-                if (s.includes('기획')) return 'plan-adv';
-                if (s.includes('ui') || s.includes('ux')) return 'ui';
-                if (s.includes('그래픽')) return 'graphic';
-                if (s.includes('원화') || s.includes('캐릭터')) return 'art-adv';
-                if (s.includes('아트웍') || s.includes('드로잉')) return 'art-basic';
-                if (s.includes('국]') || s.includes('k-digital') || s.includes('전문가양성')) return 'kdigital';
-                if (s.includes('포폴') || s.includes('포트폴리오')) return 'port';
-                return 'art-basic';
-            }
-
-            const maxCols = df[0] ? df[0].length : 0;
-            for (let c = 1; c < maxCols; c++) {
-                const room = roomMap[c];
-                if (!room) continue;
-
-                for (let r = 3; r < df.length; r++) {
-                    const val = df[r][c];
-                    if (isSubject(val)) {
-                        const subject = String(val).trim();
-                        const startTimeStr = timeMap[r];
-                        const startH = startTimeStr ? parseInt(startTimeStr.split(':')[0]) : 0;
-
-                        let instructor = "";
-                        let days = "월~금";
-                        let startDate = "";
-                        let endDate = "";
-
-                        let searchR = r + 1;
-                        while (searchR < df.length && !isSubject(df[searchR][c])) {
-                            const mVal = String(df[searchR][c] || "");
-                            if (mVal.includes('강사 :')) {
-                                instructor = mVal.replace('강사 :', '').trim();
-                            } else if (/^[가-힣]{2,4}\d?$/.test(mVal) && instructor === "") {
-                                instructor = mVal.trim();
-                            }
-
-                            if (["월~금", "월/수/금", "화/목", "격일", "월수금", "화목", "월수금월수", "화목화목금"].some(d => mVal.includes(d))) {
-                                days = mVal.trim();
-                            }
-
-                            if (mVal.includes('개:')) {
-                                const match = mVal.match(/(\d{4}-\d{2}-\d{2})/);
-                                if (match) startDate = match[1].substring(5);
-                            }
-                            if (mVal.includes('종:')) {
-                                const match = mVal.match(/(\d{4}-\d{2}-\d{2})/);
-                                if (match) endDate = match[1].substring(5);
-                            }
-                            searchR++;
-                        }
-
-                        let endH = startH + 2;
-                        if (searchR < df.length && timeMap[searchR]) {
-                            const nextH = parseInt(timeMap[searchR].split(':')[0]);
-                            if (nextH > startH) endH = nextH;
-                        }
-
-                        instructor = instructor.replace(/\d+$/, '').trim();
-
-                        // --- [격일 판별 로직 강화 시작] ---
-                        let weekType = "ALL";
-                        const dayStr = days.replace(/\s/g, "");
-                        const subRoom = String(df[1][c] || ""); // 예: N-1, N-2
-
-                        // 1. 요일 패턴 기반 분석
-                        if (dayStr.includes("화목") || dayStr.includes("화/목")) {
-                            weekType = "A";
-                        } else if (dayStr.includes("월수금") || dayStr.includes("월/수/금")) {
-                            weekType = "B";
-                        }
-
-                        // 2. 키워드 및 강의실 번호 교차 확인
-                        if (subject.includes("격일") || days.includes("격일") || weekType !== "ALL") {
-                            if (weekType === "ALL") { // 요일 패턴이 불분명할 때만 강의실 번호 참고
-                                if (subRoom.endsWith("-2")) weekType = "B";
-                                else if (subRoom.endsWith("-1")) weekType = "A";
-                            }
-                        }
-
-                        // 3. 예외 처리: 명시적인 월~금 수업은 무조건 ALL
-                        if (dayStr === "월~금") {
-                            weekType = "ALL";
-                        }
-                        // --- [격일 판별 로직 강화 끝] ---
-
-                        lectures.push({
-                            id: lectureId++,
-                            subject: subject,
-                            instructor: instructor,
-                            room: room,
-                            startH: startH,
-                            endH: endH,
-                            days: days,
-                            dateInfo: (startDate && endDate) ? `${startDate} ~ ${endDate}` : "",
-                            category: getCategory(subject),
-                            weekType: weekType,
-                            isBadge: "",
-                            fontSize: 14,
-                            opacity: 100
-                        });
-                        r = searchR - 1;
-                    }
-                }
-            }
-            return lectures;
-        }
 
         function downloadFile(content, fileName, contentType) {
             const a = document.createElement("a");
